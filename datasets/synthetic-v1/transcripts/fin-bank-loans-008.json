@@ -1,0 +1,10 @@
+{
+  "id": "fin-bank-loans-008",
+  "text": "Agent: Thank you for calling Hartwell Savings, this is Jason. How can I help?\nCustomer: Hi, yes, I got a letter saying my monthly mortgage payment is going up by two hundred and twelve dollars, and I don't understand why. My interest rate is fixed.\nAgent: I understand. Let me pull up your account. Can you verify the last four of your social, please?\nCustomer: Sure, it's, uh, seven-three-one-nine.\nAgent: Thank you. Okay, so I see the rate is fixed at six point two five percent, and the principal and interest portion hasn't changed. The increase is from your escrow account. Your property taxes went up this year, and homeowners insurance renewed at a higher premium.\nCustomer: Oh. So the bank isn't raising the rate.\nAgent: Correct. The escrow just collects what's needed to pay taxes and insurance on your behalf. There was also a shortage from last year that's being spread over twelve months.\nCustomer: Can I pay the shortage in one lump sum so the monthly payment is lower?\nAgent: Yes, you can. The shortage amount is nine hundred and forty-eight dollars. If you pay it by the date on the letter, we'll recalculate the payment.\nCustomer: Okay. And can I shop around for a cheaper insurance?\nAgent: Absolutely. If you find a better policy, send us the new declarations page and we'll update escrow.\nCustomer: Great, thank you, that clears things up.",
+  "metadata": {
+    "gold_path": "finance/banking/loans",
+    "lang": "en",
+    "kind": "normal",
+    "note": "bank call: mortgage payment dispute and escrow increase"
+  }
+}

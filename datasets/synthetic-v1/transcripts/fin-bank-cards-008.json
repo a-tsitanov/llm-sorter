@@ -1,0 +1,10 @@
+{
+  "id": "fin-bank-cards-008",
+  "text": "Agent: Thank you for calling card services, this is Rachel. How can I help you today?\nCustomer: Hi, my debit card got declined at the grocery store, and I know there's money in the account. I was really embarrassed.\nAgent: I'm so sorry about that. Let me take a look. Can I have your name and the last four digits of the card?\nCustomer: Tom Bradley, and it's, uh, two-six-one-one.\nAgent: Thank you, Mr. Bradley. I see that our fraud system flagged a transaction this morning, a purchase of nine hundred and forty dollars at an electronics store in another state, and it placed a temporary block on your card.\nCustomer: That wasn't me. I haven't left town.\nAgent: I figured. Let's confirm. Did you make any purchase at that store?\nCustomer: No, absolutely not.\nAgent: Okay, I'll mark that charge as fraud, cancel this card and issue a new one. You'll get it in three to five business days, and you'll receive a provisional credit for the fraudulent charge.\nCustomer: And what do I do in the meantime? I have bills.\nAgent: You can add the digital card to your phone wallet right now and use it for contactless payments. I can send a link.\nCustomer: That would help a lot. Thanks.\nAgent: Of course. Is there anything else I can help with?\nCustomer: No, that's it.",
+  "metadata": {
+    "gold_path": "finance/banking/cards",
+    "lang": "en",
+    "kind": "normal",
+    "note": "customer calls about a declined card and fraud alert"
+  }
+}

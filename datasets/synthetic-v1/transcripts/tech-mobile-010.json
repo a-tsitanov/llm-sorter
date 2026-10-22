@@ -1,0 +1,9 @@
+{
+  "id": "tech-mobile-010",
+  "text": "Rep: Hello, Northline Mobile customer care, Ellie speaking.\nCaller: Hi. I need to report my phone as lost, um, I left it on a train this morning, and I'm worried about my SIM card. Somebody could run up my bill.\nRep: I'm sorry to hear that, I can help you right away. Can I get your mobile number and your account PIN?\nCaller: The number is two-oh-two, five-five-five, oh-one-nine-six. PIN is, uh, eight-one-seven-three.\nRep: Thank you. Okay, I'm going to suspend the line so no calls, texts, or data can be used. Is that okay?\nCaller: Yes please, do it.\nRep: Done. The SIM has been blocked. Now, would you like a replacement SIM sent to your address, or do you want to pick up one at a store today?\nCaller: I'd rather pick one up. I have a spare old phone at home I can use.\nRep: Sure, any Northline store will do. Bring photo ID. They'll activate a new SIM on the same number at no charge, and you'll keep your plan and balance.\nCaller: Do I lose my data allowance for this month?\nRep: No, it carries over. You've used about three gigs of your ten.\nCaller: Great. And is there a way to track the phone from your side?\nRep: We can't locate devices, but you can use the phone manufacturer's find-my-device feature. If it's found, you can unblock the line in the app.\nCaller: Okay. Thanks, Ellie.",
+  "metadata": {
+    "gold_path": "tech/mobile",
+    "lang": "en",
+    "kind": "normal"
+  }
+}

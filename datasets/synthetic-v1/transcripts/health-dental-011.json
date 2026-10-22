@@ -1,0 +1,10 @@
+{
+  "id": "health-dental-011",
+  "text": "Praxis: Zahnarztpraxis Dr. Lenz, guten Tag, hier spricht Frau Hartmann.\nPatient: Guten Tag, äh, Brandt mein Name. Ich habe seit gestern Abend ziemliche Schmerzen im Oberkiefer, links hinten. Ich glaube, die alte Füllung ist rausgefallen.\nPraxis: Das tut mir leid. Sind Sie schon Patient bei uns?\nPatient: Nein, leider nicht. Mein Zahnarzt hat in den Ruhestand gewechselt, und jetzt suche ich was Neues.\nPraxis: Verstehe. Wir können Sie als Schmerzpatient heute noch dazwischenschieben. Können Sie um fünfzehn Uhr da sein?\nPatient: Ja, das geht. Und, ähm, was kostet das ungefähr? Ich bin gesetzlich versichert, bei der AOK.\nPraxis: Die Untersuchung und eine Notfallbehandlung zahlt die Kasse. Falls der Zahn eine neue Füllung braucht, ist eine normale Kunststofffüllung im Seitenzahnbereich Kassenleistung, nur Zuzahlungen gibt es für bessere Materialien.\nPatient: Und wenn der Zahn überkront werden muss?\nPraxis: Dann gibt es einen Festzuschuss von der Krankenkasse, ungefähr fünfzig Prozent der Regelversorgung, mit Bonusheft bis zu sechzig oder fünfundsiebzig Prozent. Eine Vollkeramikkrone kostet bei uns um die siebenhundertfünfzig Euro, davon bleibt ein Eigenanteil.\nPatient: Okay. Ich habe ein Bonusheft, aber das liegt zu Hause.\nPraxis: Bringen Sie es bitte mit, dazu Ihre Versichertenkarte. Dann bis fünfzehn Uhr, Herr Brandt.",
+  "metadata": {
+    "gold_path": "health/dental",
+    "lang": "de",
+    "kind": "normal",
+    "note": "Terminvereinbarung beim Zahnarzt: Schmerzen und Kronenkosten"
+  }
+}

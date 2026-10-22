@@ -1,0 +1,9 @@
+{
+  "id": "tech-mobile-011",
+  "text": "Agente: Gracias por llamar a Movilnet, le atiende Sofía. ¿En qué puedo ayudarle?\nCliente: Buenas tardes. Quiero cambiarme de compañía, pero quiero conservar mi número de teléfono. He oído que se llama portabilidad.\nAgente: Así es. ¿Me dice su nombre completo y el número que desea portar?\nCliente: Soy Javier Ortega Ruiz, y el número es seis, cero, cuatro, doce, treinta y cuatro, cincuenta y seis.\nAgente: Gracias, señor Ortega. Veo que su línea actual es de otra compañía. Para hacer la portabilidad necesito el número de la tarjeta SIM, que está impreso, tiene diecinueve o veinte dígitos, y su documento de identidad.\nCliente: Tengo el DNI aquí. La SIM está en el móvil, ahora la saco... el número empieza por ocho-nueve-tres-cero.\nAgente: Perfecto. Cuando termine de dictarlo, le enviaremos un SMS con un código de confirmación. La portabilidad se hace en un día laborable, normalmente a partir de las seis de la mañana.\nCliente: ¿Y se pierde el saldo de mi tarjeta prepago actual?\nAgente: Si es prepago, el saldo restante se puede perder, salvo que lo consuma antes. Le recomendaría gastar el crédito o pedir una devolución a su compañía.\nCliente: Vale. ¿Y cuánto cuesta la tarifa nueva?\nAgente: La tarifa «Libre 30» cuesta veintidós euros al mes, con treinta gigas y llamadas ilimitadas. Los primeros tres meses tiene un descuento del cincuenta por ciento.\nCliente: Me interesa. Hágalo, por favor.",
+  "metadata": {
+    "gold_path": "tech/mobile",
+    "lang": "es",
+    "kind": "normal"
+  }
+}

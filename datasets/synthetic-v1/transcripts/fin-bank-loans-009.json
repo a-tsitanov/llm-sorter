@@ -1,0 +1,10 @@
+{
+  "id": "fin-bank-loans-009",
+  "text": "Alex: Hey Jordan, you got a minute? I'm trying to figure out whether to refinance my loans.\nJordan: Sure. What do you have?\nAlex: A car loan, twelve thousand left at nine percent, and student loans, twenty-eight thousand at, I think, six and a half. And I've got a decent credit score now, seven-ten or so.\nJordan: With seven-ten you can probably get the car loan down to six or seven. Have you checked with a credit union?\nAlex: Not yet. I looked at one online lender, they quoted seven point two. But there's an origination fee, um, one percent.\nJordan: A one percent fee on twelve thousand is a hundred twenty bucks. If you save two points over three years, that's, what, about three hundred forty a year, so it's worth it.\nAlex: Right. The student loan, though, is federal, and I heard if you refinance it privately you lose the protections.\nJordan: Yeah, you lose income-driven repayment and forbearance options. At six and a half it's not terrible. I'd leave it unless you can get like four.\nAlex: Okay. That makes sense. So just the car loan.\nJordan: And check for a prepayment penalty on the current one before you switch.\nAlex: Good point. I'll call them tomorrow. Thanks, man.\nJordan: Anytime.",
+  "metadata": {
+    "gold_path": "finance/banking/loans",
+    "lang": "en",
+    "kind": "normal",
+    "note": "friend call: considering refinancing a student loan and a car loan"
+  }
+}

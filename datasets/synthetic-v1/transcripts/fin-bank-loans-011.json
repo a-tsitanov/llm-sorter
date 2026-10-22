@@ -1,0 +1,10 @@
+{
+  "id": "fin-bank-loans-011",
+  "text": "Berater: Guten Tag, Frau Keller, schön, dass Sie da sind. Sie interessieren sich für eine Baufinanzierung, richtig?\nKundin: Ja, genau. Wir möchten ein Haus kaufen, der Kaufpreis liegt bei vierhundertzwanzigtausend Euro. Eigenkapital haben wir ungefähr neunzigtausend.\nBerater: Gut. Das sind gut einundzwanzig Prozent, das ist solide. Dazu kommen die Nebenkosten, also Notar, Grundbuch und Grunderwerbsteuer, etwa zehn Prozent. Haben Sie die in Ihrer Rechnung berücksichtigt?\nKundin: Ähm, ehrlich gesagt nicht ganz. Wir dachten, die neunzigtausend gehen komplett in den Kaufpreis.\nBerater: Dann müssen wir anders rechnen. Von Ihrem Eigenkapital gehen rund zweiundvierzigtausend für die Nebenkosten ab. Bleiben etwa achtundvierzig für den Kaufpreis, das Darlehen läge dann bei circa dreihundertzweiundsiebzigtausend Euro.\nKundin: Das ist mehr, als ich gedacht habe. Wie hoch wäre dann die monatliche Rate?\nBerater: Bei einem Sollzins von drei Komma sechs Prozent und zwei Prozent anfänglicher Tilgung sind es ungefähr sieben hundert Euro im Monat.\nKundin: Und die Zinsbindung? Mein Mann meint, zehn Jahre reichen.\nBerater: Zehn Jahre sind üblich, aber wenn Sie Planungssicherheit wollen, wären fünfzehn Jahre etwas teurer, aber sicherer. Außerdem empfehle ich Sondertilgungen von fünf Prozent jährlich zu vereinbaren.\nKundin: Gut, das klingt sinnvoll. Können Sie uns ein Angebot schicken?\nBerater: Selbstverständlich, bis Ende der Woche.",
+  "metadata": {
+    "gold_path": "finance/banking/loans",
+    "lang": "de",
+    "kind": "normal",
+    "note": "Beratungsgespräch zur Baufinanzierung und Zinsbindung"
+  }
+}

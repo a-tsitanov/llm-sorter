@@ -1,0 +1,10 @@
+{
+  "id": "nearmiss-006",
+  "text": "Agent: Thank you for calling Meridian Health Insurance, claims department. This is Sarah.\nMember: Hi Sarah. I'm calling about a denied claim. It's for a crown and root canal that I had done on my molar in August. My dentist said it'd be covered, and now I have a letter saying it's denied and I owe the whole two thousand one hundred dollars.\nAgent: I'm sorry. Can I have your member ID and date of birth?\nMember: It's M-D-seven-seven-two-nine-one, and I was born June third, nineteen seventy-nine. Name's Robert Chan.\nAgent: Thanks, Mr. Chan. I see the claim here, submitted by Dr. Alvarez's office. The denial reason code says \"procedure not covered under plan, exclusion for major restorative dental care in first twelve months.\"\nMember: But I've had this policy for eight months. Nobody told me about a twelve-month waiting period. The brochure says \"dental included.\"\nAgent: What your plan includes is preventive dental, so cleanings, X-rays, and exams, at one hundred percent. Major services like crowns and root canals have a waiting period before coverage starts.\nMember: That's ridiculous. The dentist did the treatment because my tooth was cracked, it was urgent. Is there an appeal process?\nAgent: Yes. You can file an appeal within one hundred and eighty days. You'll need a letter of medical necessity from the dentist and the X-rays. If the claim is for an emergency, we can review it as an exception.\nMember: Okay. Can you send me the form?\nAgent: I'll email it right now, and the appeal goes to the review committee. They respond within thirty days.\nMember: Fine. And in the meantime, do I have to pay the dentist?\nAgent: I'd suggest talking to the dental office about a hold on the balance until the appeal finishes.",
+  "metadata": {
+    "gold_path": "health/insurance",
+    "lang": "en",
+    "kind": "near_miss",
+    "note": "Refused insurance claim for dental work; heavy dental vocabulary (crown, root canal, dentist). Imitates health/dental; true topic is health insurance claim denial."
+  }
+}

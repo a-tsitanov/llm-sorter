@@ -1,0 +1,9 @@
+{
+  "id": "tech-internet-009",
+  "text": "A: Hey, so remember I told you our wifi was dead in the upstairs bedrooms?\nB: Yeah, the router's down in the basement, right?\nA: Right, right. So I looked into getting a mesh system. The guy at the store said get a three-pack, like the Eero or the TP-Link Deco ones. They're about, uh, two hundred and fifty bucks.\nB: Honestly, you might not need three. How big is your house?\nA: Like two thousand square feet, two floors plus the basement.\nB: Then two nodes might do it. One in the basement, hooked up by Ethernet to your modem, and one on the first floor, in the middle. The upstairs will be covered from that one. The thing people get wrong is putting satellites too far apart. Each one needs a decent signal from the one before it.\nA: Okay, so it's about placement, not the number.\nB: Mostly. And if you can run an Ethernet cable to the second node, wired backhaul, that's even better. Then you don't lose half the speed.\nA: I can't really drill through the floor, we're renting.\nB: Then go with wireless backhaul, but buy the tri-band version if you can. It has a dedicated channel just for the nodes talking to each other.\nA: That's the pricey one, though.\nB: A bit. But I'd rather pay fifty more than keep fighting buffering on Netflix. And one more thing, check what your plan speed is. If you're on a hundred megabit plan, a fancy mesh won't make it faster than a hundred.\nA: Oh, we're on five hundred, I just upgraded. So worth it then.\nB: Definitely. Get the two-pack and see.",
+  "metadata": {
+    "gold_path": "tech/internet",
+    "lang": "en",
+    "kind": "normal"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "tech-mobile-009",
+  "text": "A: Hey, so I finally decided to switch carriers. I'm moving from Telstar to Blue Ridge Wireless, but I want to keep my number. Do you know how that works?\nB: Yeah, it's called porting. You don't cancel your old plan first, that's the big mistake people make. If you cancel, you lose the number.\nA: Oh, okay. So I just go to Blue Ridge?\nB: Right. You go to the new carrier, tell them you want to port in your number. They'll need your account number from Telstar, and a transfer PIN, which you can get from the Telstar app or by texting a code to them.\nA: And how long does it take?\nB: Usually a few hours, sometimes up to a day. During the switch your phone might lose service for like fifteen minutes, and then it flips to the new SIM.\nA: What about my phone? It's still paid off, it should be unlocked.\nB: Check that. Call Telstar and ask if it's unlocked, because if it isn't, the new SIM won't work. Mine took a day to unlock.\nA: Hmm. And the plan I have has two months left on a contract.\nB: Then you might owe an early termination fee, maybe fifty bucks. But Blue Ridge sometimes covers it if you ask for a switching credit.\nA: That's smart, I'll ask. Okay, I'll call Telstar this afternoon for the PIN and the unlock.\nB: Good. And back up your two-factor apps first, since your SMS codes might not arrive for a bit.",
+  "metadata": {
+    "gold_path": "tech/mobile",
+    "lang": "en",
+    "kind": "normal"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "health-dental-009",
+  "text": "Dr. Patel: So, looking at the X-ray, you can see the lower left wisdom tooth here, it's sitting at an angle, pushing against the tooth in front.\nPatient: Right. And that's why it hurts when I chew?\nDr. Patel: That's part of it. There's also a bit of gum inflammation around it, we call it pericoronitis. It keeps getting food trapped underneath.\nPatient: So, does it have to come out? I've heard some people just leave them.\nDr. Patel: In your case, I'd recommend removal. It's partially impacted, you've already had two flare-ups this year, and it's damaging the second molar. Left alone, that molar could develop decay that's hard to fix.\nPatient: What's the procedure like? Am I going to be knocked out?\nDr. Patel: Local anesthetic is usually enough, you're awake but numb. If you're anxious we can offer sedation. The extraction takes about thirty to forty minutes. Recovery is a few days of swelling, soft food, ice packs.\nPatient: And cost? I don't have insurance at the moment.\nDr. Patel: For a surgical extraction like this it's about four hundred and fifty dollars per tooth. Sedation adds two hundred. We can do payment plans over three months.\nPatient: Okay. Um, I think I want to do it, but can we do it after the fifteenth? I have a work trip.\nDr. Patel: Sure. Let's book the twenty-second. I'll give you antibiotics to take beforehand and a sheet with instructions.",
+  "metadata": {
+    "gold_path": "health/dental",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Patient asking dentist about wisdom tooth removal"
+  }
+}

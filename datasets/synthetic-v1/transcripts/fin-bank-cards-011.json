@@ -1,0 +1,10 @@
+{
+  "id": "fin-bank-cards-011",
+  "text": "Agente: Buenas tardes, servicio de atención al cliente del banco, le habla Carlos. ¿En qué puedo ayudarle?\nCliente: Buenas tardes. Estoy viendo en mi aplicación un cargo de ciento ochenta euros en una tienda en línea que no conozco. Yo no he comprado nada ahí.\nAgente: Lamento oír eso. ¿Me puede indicar su nombre completo y los últimos cuatro dígitos de la tarjeta?\nCliente: Laura Fernández, y termina en siete-dos-cuatro-cero.\nAgente: Gracias, señora Fernández. Veo la operación, fue realizada ayer a las veintitrés cuarenta, comercio con sede en el extranjero. ¿Tiene la tarjeta física con usted?\nCliente: Sí, la tengo en la cartera, no se me ha perdido. Entonces seguramente me clonaron los datos o los robaron en alguna compra por internet.\nAgente: Es posible. Lo más seguro es bloquear la tarjeta ahora mismo y emitir una nueva con otro número. ¿Está de acuerdo?\nCliente: Sí, por favor. Bloquéela.\nAgente: Hecho. También abriré una reclamación por la operación no reconocida. Le llegará un correo con el número de caso. Normalmente el reembolso se tramita en diez días hábiles.\nCliente: Vale. ¿Y la tarjeta nueva?\nAgente: Llegará a su domicilio en cinco días hábiles. Mientras tanto puede usar la tarjeta virtual en la aplicación.\nCliente: Perfecto, muchas gracias.\nAgente: A usted. Que tenga buena tarde.",
+  "metadata": {
+    "gold_path": "finance/banking/cards",
+    "lang": "es",
+    "kind": "normal",
+    "note": "llamada al banco por cargo desconocido y bloqueo de tarjeta"
+  }
+}

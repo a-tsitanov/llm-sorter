@@ -1,0 +1,10 @@
+{
+  "id": "travel-flights-012",
+  "text": "Agente: Aerolíneas Costa Azul, buenos días, le atiende Marcos.\nPasajera: Hola, buenas. Tengo un vuelo mañana de Madrid a Buenos Aires y quería cambiar la fecha. ¿Se puede?\nAgente: Claro. ¿Me da el código de reserva?\nPasajera: Sí, es R, T, nueve, dos, uno, K.\nAgente: Perfecto, señora Duarte. Tiene tarifa Flexible, entonces el cambio no tiene penalización. Solo se paga la diferencia de precio, si la hay. ¿A qué fecha quiere moverlo?\nPasajera: Para el jueves, si hay sitio. Ah, y quería preguntar por el equipaje: llevo dos maletas.\nAgente: En su tarifa va incluida una maleta de veintitrés kilos. La segunda cuesta setenta euros si la paga online, noventa en el aeropuerto.\nPasajera: Vale, la pago ahora. ¿Y la del jueves hay sitio?\nAgente: Sí, queda disponibilidad. El cambio queda hecho, le llega la confirmación por correo en unos minutos.\nPasajera: Gracias, Marcos. ¿Puedo elegir asiento de pasillo?\nAgente: Sí, le pongo el 18C, sin coste adicional con la tarifa Flexible.",
+  "metadata": {
+    "gold_path": "travel/flights",
+    "lang": "es",
+    "kind": "normal",
+    "note": "Cambio de billete y equipaje en el aeropuerto"
+  }
+}

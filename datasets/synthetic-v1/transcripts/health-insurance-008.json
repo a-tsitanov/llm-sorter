@@ -1,0 +1,10 @@
+{
+  "id": "health-insurance-008",
+  "text": "Agent: Thank you for calling Harborline Health, this is Chris. Can I get your member ID?\nCaller: Yes, it's H, L, four, nine, eight, seven, two, one. My name is Priya Raman.\nAgent: Thanks, Priya. How can I help today?\nCaller: I got a letter saying my claim for an emergency room visit was denied. I went in on September ninth with severe abdominal pain, they did a CT scan, and the bill was almost nine thousand dollars. I thought emergencies were covered.\nAgent: Let me pull that up. Okay, I see the claim. It was denied with the reason code, um, \"out-of-network facility, prior authorization not obtained.\"\nCaller: Prior authorization for an emergency? I was in an ambulance. I wasn't exactly calling you first.\nAgent: I understand. Under your plan, emergency care should be covered regardless of network under the, uh, prudent layperson standard. This looks like it may have been processed incorrectly.\nCaller: So what do I do?\nAgent: I can file an appeal on your behalf right now. I'll note that it was an emergency and attach the ambulance record. You'll want to send us the discharge summary as well.\nCaller: I have the discharge papers. Can I upload them online?\nAgent: Yes, through the member portal under Claims, then Appeals. The appeal gets reviewed within thirty days.\nCaller: Thirty days, okay. And do I pay the hospital in the meantime?\nAgent: The hospital shouldn't send you to collections while an appeal is open. I'll put a note on the file.",
+  "metadata": {
+    "gold_path": "health/insurance",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Health insurance claim denied for an ER visit"
+  }
+}

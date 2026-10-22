@@ -1,0 +1,10 @@
+{
+  "id": "travel-flights-009",
+  "text": "A: So I'm looking at flights for the wedding in Lisbon. Budget airline is two hundred twenty return, but then bags are extra.\nB: How extra?\nA: Checked bag is sixty each way, and seat selection is twenty. So, yeah, close to three-forty.\nB: The other one, TAP, how much?\nA: Four-ten, but it includes a bag and a meal.\nB: Then the difference is like seventy bucks, and you get a better schedule?\nA: Yeah, the cheap one lands at eleven p.m. and I'd have to take a taxi.\nB: Just take TAP. You'll save on the taxi. And if there's a strike or whatever, the big airline is more likely to rebook you.\nA: True. My cousin got stuck last month with the cheap one, they just refunded her and that was it, no help.\nB: Right. Book TAP.\nB: And check whether they charge for a carry-on, some of them do now.\nA: Good point, I'll read the fine print before paying.",
+  "metadata": {
+    "gold_path": "travel/flights",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Friend call: planning flights, baggage fees comparison"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "tech-internet-011",
+  "text": "Mitarbeiter: Guten Tag, Technischer Support von NetzPlus, mein Name ist Herr Brandt. Wie kann ich helfen?\nKundin: Guten Tag. Ja, ähm, bei mir ist seit gestern Abend das Internet weg. Die Lampe an der Fritzbox leuchtet nicht mehr grün, sondern blinkt rot, bei \"Internet\".\nMitarbeiter: Verstehe. Können Sie mir bitte Ihre Kundennummer nennen?\nKundin: Ja, das ist die Eins-Zwei-Vier-Null-Neun-Sieben.\nMitarbeiter: Danke, Frau Keller. Ich sehe Ihren Anschluss. Sie haben Glasfaser mit Tausend Megabit. Haben Sie den Router schon neu gestartet?\nKundin: Ja, zweimal, aber ohne Erfolg. Auch das Glasfaserkabel, also das gelbe, sitzt fest, das habe ich geprüft.\nMitarbeiter: Gut. Ich sehe auf meiner Seite, dass Ihr Modem keine optische Verbindung meldet. Das deutet auf eine Störung an der Leitung hin, nicht an Ihrem Gerät. Ich lege einen Techniker-Termin an.\nKundin: Wann könnte der kommen? Ich arbeite im Homeoffice, ich brauche das dringend.\nMitarbeiter: Der nächste freie Termin ist morgen zwischen acht und zwölf Uhr. Passt das?\nKundin: Ja, das geht. Gibt es eine Entschädigung für den Ausfall?\nMitarbeiter: Ab dem dritten Tag Ausfall bekommen Sie eine Gutschrift auf die Rechnung. Bis dahin können Sie auf Wunsch einen LTE-Router von uns leihen, kostenlos, der wird per Express zugestellt.\nKundin: Das wäre super. Bitte schicken Sie den.\nMitarbeiter: Mache ich. Sie bekommen eine Bestätigung per E-Mail. Noch eine Frage zu Ihrer Rufnummer, damit der Techniker Sie erreichen kann?\nKundin: Null-eins-sieben-eins, Vier-Vier-Drei, Eins-Eins-Null.\nMitarbeiter: Danke. Dann wünsche ich Ihnen einen schönen Tag, Frau Keller.",
+  "metadata": {
+    "gold_path": "tech/internet",
+    "lang": "de",
+    "kind": "normal"
+  }
+}

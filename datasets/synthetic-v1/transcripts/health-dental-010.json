@@ -1,0 +1,10 @@
+{
+  "id": "health-dental-010",
+  "text": "Agent: Thank you for calling ClearPath Aligners, my name is Tyler, how can I help?\nCustomer: Hi, yeah. I started my aligners about six weeks ago and the, uh, tray number four doesn't fit. It's really tight on the back teeth and it's kind of popping off the front.\nAgent: I'm sorry to hear that. Are you following the schedule, switching trays every two weeks?\nCustomer: Yes, every two weeks, and I wear them twenty-two hours, mostly.\nAgent: Mostly. Okay. Sometimes tray fit issues are related to not wearing them enough. Do you use the chewies, those little silicone tubes?\nCustomer: Yeah, I use them for like ten minutes, twice a day.\nAgent: Good. What I'd suggest is going back to tray three for one more week and then trying four again. If it still doesn't seat, we'd schedule a virtual check with your supervising orthodontist.\nCustomer: Okay. And is that included, or does it cost extra?\nAgent: It's included in your treatment plan. If a refinement is needed, meaning new trays, the first refinement is free, after that it's about two hundred and fifty dollars.\nCustomer: Got it. Can you send me the link for the virtual check anyway? I'd rather get it done soon.\nAgent: Absolutely, I'll email it right now. What's the address on file?\nCustomer: It's just my name, jen dot miller at example dot com.",
+  "metadata": {
+    "gold_path": "health/dental",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Customer service call about invisible aligners"
+  }
+}

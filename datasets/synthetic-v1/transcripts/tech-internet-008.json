@@ -1,0 +1,9 @@
+{
+  "id": "tech-internet-008",
+  "text": "Agent: Thank you for calling BrightLine Broadband, this is Kayla. How can I help you today?\nCustomer: Hi Kayla. Yeah, my internet's been down since about six this morning. The router's got a red light on it, and I've already unplugged it twice.\nAgent: I'm sorry to hear that. Can I get the account holder's name and the postcode on the account?\nCustomer: It's Daniel Mercer, postcode is, um, M-four-two, nine-F-R.\nAgent: Thanks Daniel. Let me pull up your line. Okay, I can see there's a reported fault in your area, a cable cut near Oakfield Road. Engineers are on site.\nCustomer: Oh, so it's not just me. Any idea when it'll be back? I work from home and I've got a call at one.\nAgent: The estimate on my screen says it should be restored by two this afternoon, but those are never exact. Do you have a mobile phone you can tether to?\nCustomer: I do, but my data plan is only five gigs.\nAgent: I can add a free data boost to your mobile if you're with us for that as well. Are you?\nCustomer: No, the mobile's with another provider.\nAgent: Understood. In that case I'd suggest the free public hotspot, you may have a BrightLine hotspot nearby at the library. Otherwise, we do give an automatic credit for outages longer than twenty-four hours.\nCustomer: This will be under twenty-four, so no credit?\nAgent: That's right, I'm afraid. But let me note on your account that you've called, and I'll send you a text update the moment the engineers mark it fixed.\nCustomer: Okay. That's something. And if it's not fixed by two, do I need to call again?\nAgent: No need. If it's still down by four, the system escalates automatically and a supervisor will phone you.\nCustomer: Alright, thanks Kayla.\nAgent: You're welcome, Daniel. Sorry again for the trouble. Have a good day.",
+  "metadata": {
+    "gold_path": "tech/internet",
+    "lang": "en",
+    "kind": "normal"
+  }
+}

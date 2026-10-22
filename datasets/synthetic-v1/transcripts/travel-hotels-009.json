@@ -1,0 +1,10 @@
+{
+  "id": "travel-hotels-009",
+  "text": "Agent: Seaview Inn, reservations, this is Linda.\nCaller: Hi Linda. I'd like to book a room for the week of July twentieth, two adults and two kids, ages eight and eleven.\nAgent: Sure. We have a family suite with two queen beds and an ocean view, three hundred and ninety dollars a night, or a standard double with a rollaway for two-eighty.\nCaller: Does the suite include breakfast?\nAgent: Yes, a hot breakfast buffet for up to four guests.\nCaller: Great. What's your cancellation policy?\nAgent: Free cancellation up to seven days before arrival. After that, the first night is charged.\nCaller: Fine. And parking?\nAgent: Twenty dollars per night. There's also a shuttle to the beach every half hour.\nCaller: Perfect. Let's do the suite for seven nights. I'll give you my card.\nCaller: Do you have a crib or anything for a baby? My sister may join us with her toddler.\nAgent: Yes, cribs are free, just let us know in advance.",
+  "metadata": {
+    "gold_path": "travel/hotels",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Booking a hotel for a family trip, call to front desk"
+  }
+}

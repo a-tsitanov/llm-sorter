@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-trading-012",
+  "text": "Agente: Gracias por llamar al servicio de atención del exchange, le habla Marta. ¿En qué puedo ayudarle?\nCliente: Hola, buenas tardes. Tengo una posición de futuros en Bitcoin con apalancamiento de veinte, y el stop loss no se ejecutó. Me liquidaron y no entiendo por qué.\nAgente: Lamento oír eso. ¿Me puede dar su identificador de usuario?\nCliente: Sí, es cuatro-cuatro-nueve-uno-cero-siete.\nAgente: Gracias. Estoy revisando el historial. Veo que colocó una orden stop-limit a sesenta mil dólares, pero el precio de activación y el precio límite estaban muy juntos, y durante el movimiento brusco el precio saltó por debajo del límite, así que la orden no se ejecutó.\nCliente: O sea que fue por el slippage. Yo pensaba que el stop siempre cerraba la posición.\nAgente: Un stop de mercado sí cierra, pero con deslizamiento. Un stop-limit puede quedar sin ejecutar. Para apalancamientos altos le recomendamos stop de mercado.\nCliente: Entiendo. ¿Y el fondo de seguro cubre algo de mi pérdida?\nAgente: No, el fondo de seguro solo cubre saldos negativos, no pérdidas normales. Su cuenta no quedó en negativo.\nCliente: Vale. Bueno, la próxima vez usaré menos apalancamiento. Gracias por la explicación.\nAgente: Con gusto. Que tenga buen día.",
+  "metadata": {
+    "gold_path": "finance/crypto/trading",
+    "lang": "es",
+    "kind": "normal",
+    "note": "llamada de soporte de un exchange por orden stop y apalancamiento"
+  }
+}

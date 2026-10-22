@@ -1,0 +1,10 @@
+{
+  "id": "nearmiss-011",
+  "text": "Agent: Cedar Bank, card support, Jenna speaking.\nCustomer: Hi, I'm in Lisbon, just trying to check in at my hotel, and the front desk says my card was declined when they tried to take the deposit. Same thing happened this morning when I tried to book my flight home online.\nAgent: I'm sorry about that. Let me look at your account. Can I have your full name and the last four digits of the card?\nCustomer: Hannah Lowe, ending eight-eight-two-zero.\nAgent: Thank you, Hannah. I can see the card has been temporarily blocked for security. There were three transactions in a row in Portugal, a hotel pre-authorization of four hundred euros, an airline payment, and a taxi, and our system flagged them because you hadn't set a travel notice.\nCustomer: Oh no, I forgot. I'm here for a week, for a conference.\nAgent: No problem, I can lift the block right now, but I'll need to verify with a code. I'm sending a text to your registered number.\nCustomer: Got it. Four-six-one-three.\nAgent: Perfect. The block is removed. I've also added a travel notice for Portugal until the twenty-eighth. Your daily limit abroad is two thousand euros, do you need it raised for the hotel stay?\nCustomer: Maybe a little. The hotel wants to hold the whole six nights, about nine hundred. And the flight is another four hundred.\nAgent: That fits within the limit. Make sure the hotel retries the deposit now. Hold amounts show as pending, they'll drop off after checkout.\nCustomer: Great. I'll go back to the front desk. Thanks, Jenna.",
+  "metadata": {
+    "gold_path": "finance/banking/cards",
+    "lang": "en",
+    "kind": "near_miss",
+    "note": "Card blocked abroad while paying a hotel and booking flights; full of travel vocabulary (hotel, check-in, boarding) but the issue is card block and limits. Imitates travel/hotels; true topic cards."
+  }
+}

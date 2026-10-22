@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-wallets-009",
+  "text": "Agent: Wallet support, this is Priya. How can I help?\nCustomer: Hi. I think I made a mistake. I sent USDT from my wallet to a friend's address, but I chose the BNB chain and his address is on Ethereum. It's been two hours and he doesn't see anything.\nAgent: I'm sorry to hear that. Can you give me the transaction hash?\nCustomer: It's, uh, zero x, a, three, f... I'll just read the first few. A three f nine, and then it goes on. I can paste it into the chat if you want.\nAgent: Please do. While you do that, let me explain. The address format is identical on both networks, so the transfer went through technically. The funds are on the BNB chain, at the address that matches your friend's key.\nCustomer: Oh. So they're not lost?\nAgent: Possibly not. If your friend uses a wallet that supports the BNB chain, he can add that network, and he'll see the funds at the same address because the private key is the same.\nCustomer: Oh wow. I didn't know that.\nAgent: It works for EVM-compatible networks. It would be different if you had sent to a Bitcoin address or to an exchange deposit address that doesn't support the BNB chain.\nCustomer: Okay. Let me tell him to add the network in his wallet settings.\nAgent: Yes, and have him check the token contract address too. If he needs further help, call us back.\nCustomer: Thank you so much, that's a relief.",
+  "metadata": {
+    "gold_path": "finance/crypto/wallets",
+    "lang": "en",
+    "kind": "normal",
+    "note": "support call: sent crypto to wrong network address"
+  }
+}

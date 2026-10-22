@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-wallets-008",
+  "text": "Chris: Hey, so I finally bought a hardware wallet. I want to move my ETH off MetaMask.\nDana: Good call. Did you set it up already?\nChris: Yeah, I set a PIN, wrote down the twenty-four words on the card. Um, I put it in a drawer. Is that okay?\nDana: Better in a fireproof place. Maybe make a second copy and keep it somewhere else, like at your parents' house. Just not a photo.\nChris: Right, right. So how do I send it? I'm scared I'll mess up the address.\nDana: Connect the device, open the app, generate a receiving address, and verify it on the device screen. Then in MetaMask, click send, paste the address and send a small test first, like zero point zero one ETH.\nChris: What about gas? I saw the fee is like fifteen dollars right now.\nDana: Network is busy. You could wait for the weekend, gas is usually lower. Or just pay it, it's a one-time thing.\nChris: And tokens, do they need separate transfers?\nDana: Yes, each token is its own transaction, and each one costs gas. So if you've got tiny dust balances, maybe leave them.\nChris: Okay. And then I can remove the old MetaMask wallet?\nDana: Don't delete it until you've confirmed everything arrived. And remember that old seed phrase is still valid, so don't reuse it.\nChris: Got it. Thanks, Dana.",
+  "metadata": {
+    "gold_path": "finance/crypto/wallets",
+    "lang": "en",
+    "kind": "normal",
+    "note": "friend call: moving ETH from MetaMask to a Ledger, gas fees"
+  }
+}

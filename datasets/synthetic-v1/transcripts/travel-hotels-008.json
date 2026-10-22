@@ -1,0 +1,10 @@
+{
+  "id": "travel-hotels-008",
+  "text": "Guest: Hi, front desk? This is room four-twelve. I booked a king bed, and there are two twins in here.\nFront desk: I'm sorry about that, sir. Let me check. Is it Mr. Grant?\nGuest: Yes, Grant. I specifically requested a king. It's even on my confirmation.\nFront desk: I see the note. It looks like the king rooms were full when you arrived and we assigned you what was available. I should have called you. I apologize.\nGuest: And also it's really loud. There's a bar next door, and the bass is coming through the wall.\nFront desk: Understood. I can move you to a king room on the sixth floor, at the back of the building. It'll be quieter. Would that work?\nGuest: Yes. When?\nFront desk: Give me fifteen minutes. A bellman will help with your bags. And I'll take thirty percent off tonight's rate for the inconvenience.\nGuest: Okay. That's fair.",
+  "metadata": {
+    "gold_path": "travel/hotels",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Hotel complaint: noisy room and wrong bed type"
+  }
+}

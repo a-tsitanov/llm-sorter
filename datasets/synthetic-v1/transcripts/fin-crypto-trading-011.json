@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-trading-011",
+  "text": "Jonas: Hey Lukas, na, wie läuft dein Trading? Hast du den Absturz gestern mitbekommen?\nLukas: Ja klar, ich bin voll drin gewesen. Ich hatte einen Long auf Ethereum, Hebel zehn, und der Stop-Loss war, äh, gar nicht gesetzt. Dumm, ich weiß.\nJonas: Oh nein. Wurdest du liquidiert?\nLukas: Fast. Ich hab noch rechtzeitig Margin nachgeschossen, so zweihundert Euro. Aber die Position ist immer noch im Minus, so ungefähr fünfzehn Prozent.\nJonas: Mach doch einen Stop, am besten unter dem letzten Tief. Und reduzier den Hebel auf maximal fünf.\nLukas: Ja, du hast recht. Ich hab auf der Börse nachgeschaut, die Gebühren für Futures sind eigentlich okay, aber das Funding frisst mich auf, wenn ich zu lange drin bleibe.\nJonas: Genau, das Funding alle acht Stunden. Wenn du langfristig long gehst, kauf lieber Spot.\nLukas: Stimmt. Ich überlege, die Position zu schließen und morgen mit kleinerem Einsatz neu einzusteigen. Eine Prozent vom Konto pro Trade, wie du immer sagst.\nJonas: Genau. Und schreib Tagebuch, welche Signale du benutzt hast.\nLukas: Mach ich. Danke dir, Jonas. Ich ruf dich am Wochenende an.",
+  "metadata": {
+    "gold_path": "finance/crypto/trading",
+    "lang": "de",
+    "kind": "normal",
+    "note": "Gespräch unter Freunden über Hebel und Stop-Loss"
+  }
+}

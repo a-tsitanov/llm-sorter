@@ -1,0 +1,227 @@
+"""Адаптеры моделей поверх OpenAI-совместимого API LM Studio."""
+
+import json
+import re
+from typing import Any
+
+from openai import AsyncOpenAI
+from pydantic import ValidationError
+
+from llm_sorter.config import AppConfig
+from llm_sorter.domain.discover import TopicProposal
+from llm_sorter.domain.traversal import Candidate
+from llm_sorter.ports.models import InvalidModelOutput
+
+_ID_RE = re.compile(r"^[a-z0-9_]+$")
+_MAX_EXAMPLES = 3
+_GENERATION_TEMPERATURE = 0.2
+_LANG_NOTE = "Транскрипт может быть на любом языке; оценивай смысл независимо от языка."
+
+
+def make_openai_client(cfg: AppConfig) -> AsyncOpenAI:
+    # ретраи делает Temporal; таймаут ниже start_to_close activity (120 с)
+    return AsyncOpenAI(
+        base_url=cfg.lmstudio_url, api_key=cfg.lmstudio_api_key, timeout=110, max_retries=0
+    )
+
+
+def _schema(name: str, schema: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}}
+
+
+def _enum_schema(name: str, key: str, values: list[str]) -> dict[str, Any]:
+    return _schema(
+        name,
+        {
+            "type": "object",
+            "properties": {key: {"type": "string", "enum": values}},
+            "required": [key],
+            "additionalProperties": False,
+        },
+    )
+
+
+async def _chat(
+    client: AsyncOpenAI,
+    model: str,
+    system: str,
+    user: str,
+    temperature: float,
+    response_format: dict[str, Any] | None = None,
+) -> str:
+    kwargs: dict[str, Any] = {}
+    if response_format is not None:
+        kwargs["response_format"] = response_format
+    resp = await client.chat.completions.create(
+        model=model,
+        temperature=temperature,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        **kwargs,
+    )
+    return resp.choices[0].message.content or ""
+
+
+async def _chat_json(
+    client: AsyncOpenAI,
+    model: str,
+    system: str,
+    user: str,
+    temperature: float,
+    response_format: dict[str, Any],
+) -> dict[str, Any]:
+    """Вызов чата со строгой json-схемой; нарушения формата -> InvalidModelOutput."""
+    content = await _chat(client, model, system, user, temperature, response_format)
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        raise InvalidModelOutput(f"невалидный JSON: {content!r}") from e
+    if not isinstance(data, dict):
+        raise InvalidModelOutput(f"ожидался JSON-объект: {content!r}")
+    return data
+
+
+def _pick_enum(data: dict[str, Any], key: str, allowed: list[str]) -> str:
+    value = data.get(key)
+    if not isinstance(value, str) or value not in allowed:
+        raise InvalidModelOutput(f"{key}={value!r} вне списка {allowed}")
+    return value
+
+
+def _format_candidate(c: Candidate) -> str:
+    lines = [f"- id: {c.id}", f"  title: {c.title}", f"  description: {c.description}"]
+    lines += [f"  пример: {e}" for e in c.examples[:_MAX_EXAMPLES]]
+    return "\n".join(lines)
+
+
+class LMStudioDecision:
+    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    async def decide(self, text: str, candidates: list[Candidate]) -> str:
+        ids = [c.id for c in candidates]
+        system = (
+            "Ты классификатор разговоров. Выбери одну тему, к которой относится разговор; "
+            "если ни одна не подходит — other. Ответь JSON с полем choice. " + _LANG_NOTE
+        )
+        user = "Темы:\n" + "\n".join(_format_candidate(c) for c in candidates)
+        user += f"\n\nРазговор:\n{text}"
+        data = await _chat_json(
+            self._client, self._model, system, user, 0, _enum_schema("choice", "choice", ids)
+        )
+        return _pick_enum(data, "choice", ids)
+
+
+class LMStudioGuard:
+    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    async def check(self, text: str, question: str) -> bool:
+        system = (
+            "Ты проверяешь разговор. Ответь на вопрос строго yes или no в JSON с полем answer. "
+            + _LANG_NOTE
+        )
+        user = f"Вопрос: {question}\n\nРазговор:\n{text}"
+        data = await _chat_json(
+            self._client,
+            self._model,
+            system,
+            user,
+            0,
+            _enum_schema("answer", "answer", ["yes", "no"]),
+        )
+        return _pick_enum(data, "answer", ["yes", "no"]) == "yes"
+
+
+_PROPOSAL_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "examples": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "guard": {"type": "string"},
+    },
+    "required": ["id", "title", "description", "examples", "guard"],
+    "additionalProperties": False,
+}
+
+
+class LMStudioText:
+    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    async def translate(self, text: str, to: str) -> str:
+        system = f"Переведи текст на язык: {to}. Верни только перевод, без пояснений."
+        out = await _chat(self._client, self._model, system, text, _GENERATION_TEMPERATURE)
+        return out.strip()
+
+    async def summarize(self, text: str, language: str) -> str:
+        system = (
+            f"Кратко перескажи разговор в 3-5 предложениях на языке: {language}. "
+            "Верни только пересказ."
+        )
+        out = await _chat(self._client, self._model, system, text, _GENERATION_TEMPERATURE)
+        return out.strip()
+
+    async def propose_topic(
+        self, samples: list[str], parent_path: str, siblings: list[Candidate], language: str
+    ) -> TopicProposal:
+        system = (
+            "Ты проектируешь дерево тем для классификации разговоров. По образцам предложи одну "
+            "новую тему. id — латиница нижнего регистра, цифры и подчёркивание. guard — "
+            "вопрос yes/no, проверяющий принадлежность к теме. examples — 2-3 короткие типичные "
+            "фразы из разговоров этой темы. "
+            f"Title, description, examples и "
+            f"guard пиши на языке: {language}. Не повторяй уже существующие темы. " + _LANG_NOTE
+        )
+        neighbours = "\n".join(_format_candidate(c) for c in siblings) or "(нет)"
+        numbered = "\n\n".join(f"[{i}] {s}" for i, s in enumerate(samples, 1))
+        user = (
+            f"Путь родителя: {parent_path}\n\nСоседние темы (не повторять):\n{neighbours}"
+            f"\n\nОбразцы разговоров:\n{numbered}"
+        )
+        data = await _chat_json(
+            self._client,
+            self._model,
+            system,
+            user,
+            _GENERATION_TEMPERATURE,
+            _schema("topic_proposal", _PROPOSAL_SCHEMA),
+        )
+        try:
+            proposal = TopicProposal.model_validate(data)
+        except ValidationError as e:
+            raise InvalidModelOutput(f"некорректное предложение темы: {e}") from e
+        if not _ID_RE.match(proposal.id):
+            raise InvalidModelOutput(f"id {proposal.id!r} не соответствует ^[a-z0-9_]+$")
+        examples = [e.strip() for e in proposal.examples if e.strip()]
+        return proposal.model_copy(update={"examples": examples})
+
+    async def same_topic(self, a: Candidate, b: Candidate) -> bool:
+        system = (
+            "Определи, описывают ли две темы одно и то же по смыслу. "
+            "Ответь JSON с полем answer: yes или no."
+        )
+        user = f"Тема A:\n{_format_candidate(a)}\n\nТема B:\n{_format_candidate(b)}"
+        data = await _chat_json(
+            self._client,
+            self._model,
+            system,
+            user,
+            0,
+            _enum_schema("answer", "answer", ["yes", "no"]),
+        )
+        return _pick_enum(data, "answer", ["yes", "no"]) == "yes"
+
+
+class LMStudioEmbedder:
+    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        resp = await self._client.embeddings.create(model=self._model, input=texts)
+        return [list(d.embedding) for d in sorted(resp.data, key=lambda d: d.index)]

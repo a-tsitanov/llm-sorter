@@ -1,0 +1,10 @@
+{
+  "id": "nearmiss-009",
+  "text": "A: Hey man, did you see ETH dump this morning? I got stopped out on my long.\nB: Yeah, I saw. Where was your stop?\nA: At twenty-six hundred. I had ten x leverage on the futures, and it wicked down to two thousand five hundred and eighty and liquidated half my position.\nB: Ouch. Ten x on ETH futures is rough. I keep mine at three x, five max. Did you move funds from your cold wallet onto the exchange to top up margin?\nA: Yeah, I sent five thousand USDT from my Ledger to Binance, to add margin before it hit the liquidation price. But it took a while, the transfer was slow because of gas fees. By the time it arrived on the exchange, the position was gone.\nB: That's the problem. Always keep margin on the exchange if you're trading perps, don't be moving from the wallet during a spike. And set your stop-loss on the exchange, not mental.\nA: I know. So what's your take now, are we going to retest the low? I'm thinking about re-entering with a smaller size at twenty-five fifty, with a stop under twenty-five hundred.\nB: I'd wait for the four-hour candle to close above support. Funding rate's still positive, so longs are crowded. If you short, the risk-reward is better, target twenty-three hundred.\nA: Hmm. I'm bullish long term, but you're right, let's see the daily. I'll take a small short, two x, as a hedge.\nB: Good. Keep position size at one percent risk per trade.\nA: Yeah yeah. I'll update you when I'm in. And I'll send the withdrawal address later, just let me close the trade first.",
+  "metadata": {
+    "gold_path": "finance/crypto/trading",
+    "lang": "en",
+    "kind": "near_miss",
+    "note": "Trading call that constantly mentions wallets, withdrawals and addresses. Imitates finance/crypto/wallets; true topic is trading (leverage, stops, futures)."
+  }
+}

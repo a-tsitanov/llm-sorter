@@ -1,0 +1,10 @@
+{
+  "id": "travel-flights-011",
+  "text": "Mitarbeiter: Nordwind Airlines, Kundenservice, mein Name ist Keller.\nKundin: Guten Tag, Weber hier. Ich hatte letzte Woche einen Flug von Frankfurt nach Madrid, und der kam mit über vier Stunden Verspätung an. Ich möchte wissen, ob mir eine Entschädigung zusteht.\nMitarbeiter: Das tut mir leid. Haben Sie die Buchungsnummer?\nKundin: Ja, die lautet N, W, sieben, drei, vier, Z.\nMitarbeiter: Danke, Frau Weber. Ich sehe den Flug, geplante Ankunft 14:10 Uhr, tatsächliche Ankunft 18:35 Uhr. Die Strecke beträgt ungefähr 1.450 Kilometer, damit liegt die Ausgleichszahlung bei 400 Euro nach der EU-Fluggastrechteverordnung.\nKundin: Ah, gut. Was war der Grund der Verspätung?\nMitarbeiter: Laut System ein technischer Defekt. Das ist kein außergewöhnlicher Umstand, daher besteht der Anspruch.\nKundin: Muss ich ein Formular ausfüllen?\nMitarbeiter: Ja, online im Kundenportal. Dazu brauchen wir die Bordkarte. Die Auszahlung erfolgt innerhalb von dreißig Tagen.\nKundin: Und wenn ich die Bordkarte nicht mehr habe?\nMitarbeiter: Dann reicht auch die Buchungsbestätigung zusammen mit einem Ausweis, das klären wir im Portal. Danke für Ihre Geduld, Frau Weber.",
+  "metadata": {
+    "gold_path": "travel/flights",
+    "lang": "de",
+    "kind": "normal",
+    "note": "Flug verspätet: Entschädigung nach EU-Verordnung"
+  }
+}

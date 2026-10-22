@@ -1,0 +1,10 @@
+{
+  "id": "nearmiss-002",
+  "text": "Agent: First Harbor Bank card services, this is Tom. How can I help?\nCustomer: Hi Tom. I'm looking at my debit card statement and there's a charge of four hundred and twenty dollars from something called CoinVault Exchange. I did not buy any bitcoin. I don't even have an account on any crypto exchange.\nAgent: I'm sorry to hear that. Let me verify you first. Can you confirm the last four digits of the card and your date of birth?\nCustomer: Card ends in four-seven-one-nine. Born March ninth, nineteen eighty-four.\nAgent: Thanks. Okay, I see the charge from CoinVault, posted on the fourteenth, a card-not-present transaction. Has the card been out of your possession?\nCustomer: No, I've had it in my wallet the whole time. A physical wallet, I mean, the leather kind. I'm not talking about a crypto wallet, ha.\nAgent: Understood. Then it sounds like the card number was compromised. I'll block this card immediately and issue a replacement. You'll get it in five to seven business days.\nCustomer: Okay. And the money? That's my rent.\nAgent: I'll open a dispute for unauthorized transaction. You'll get a provisional credit of the four hundred and twenty dollars within two business days while we investigate. The merchant, the exchange, will be asked to provide proof, like the IP address and the verification they did.\nCustomer: They probably have some fake account created with my card. Will they close it?\nAgent: That's up to them, but I'll include a note. The investigation takes up to forty-five days. If we rule in your favor, the credit becomes permanent.\nCustomer: Alright. Do I need to send anything?\nAgent: Just sign the dispute form I'm emailing now. And watch for any other small charges, those are test transactions fraudsters make.\nCustomer: Will do. Thanks, Tom.",
+  "metadata": {
+    "gold_path": "finance/banking/cards",
+    "lang": "en",
+    "kind": "near_miss",
+    "note": "Disputed card charge from a crypto exchange; heavy crypto vocabulary (exchange, bitcoin, wallet), but the call is about a card dispute/chargeback. Imitates finance/crypto/*; true topic cards."
+  }
+}

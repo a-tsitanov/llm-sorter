@@ -1,0 +1,10 @@
+{
+  "id": "health-insurance-011",
+  "text": "Operadora: Aseguradora Mediterránea, le atiende Lucía, buenos días.\nCliente: Buenos días. Mire, llamo porque me han denegado el reembolso de unas sesiones de fisioterapia. Son diez sesiones, ciento ochenta euros en total, y la carta dice que no están cubiertas.\nOperadora: Claro, ¿me dice su número de póliza y su nombre completo?\nCliente: Soy Manuel Ortega Ruiz, la póliza es M, X, cero cuatro tres, guion, nueve nueve uno.\nOperadora: Gracias, señor Ortega. Veo la solicitud. El motivo del rechazo es que la fisioterapia requiere prescripción de un médico de nuestro cuadro, y la suya la hizo un traumatólogo privado.\nCliente: Pero es que el traumatólogo del cuadro médico tenía cita para dentro de dos meses y yo no podía andar. Era una lumbalgia fuerte.\nOperadora: Lo entiendo. En esos casos puede presentar una reclamación con el informe del médico y una justificación de la demora. Se revisa en un plazo de quince días hábiles.\nCliente: ¿Y hay posibilidad de que me lo paguen?\nOperadora: Sí, hay casos en los que se acepta por urgencia. Le recomiendo adjuntar también la captura de la web donde se ve la fecha de la cita.\nCliente: De acuerdo, la tengo guardada. Muchas gracias.",
+  "metadata": {
+    "gold_path": "health/insurance",
+    "lang": "es",
+    "kind": "normal",
+    "note": "Llamada a la aseguradora: rechazo de cobertura por tratamiento de fisioterapia"
+  }
+}

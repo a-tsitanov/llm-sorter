@@ -1,0 +1,10 @@
+{
+  "id": "nearmiss-015",
+  "text": "Receptionist: Bright Smile Dental, this is Chloe.\nPatient: Hi Chloe. I'm calling about getting braces for my daughter. She's fourteen. We had a consultation last week with Dr. Patel, and I wanted to ask about the price and how payment works.\nReceptionist: Of course. Can I have her name?\nPatient: Mia Thompson.\nReceptionist: Yes, I see Mia's treatment plan. Dr. Patel recommended metal braces for about eighteen months, plus two retainers afterwards. The total for the treatment is four thousand eight hundred dollars, which includes all the adjustment visits, X-rays, and the retainers.\nPatient: That's a lot. Do you offer payment plans? I'd rather not put it on my credit card with interest.\nReceptionist: We do. You can pay a deposit of nine hundred dollars at the start, and then the balance is split into eighteen monthly payments of about two hundred and sixteen dollars, with no interest. It's an in-house plan, so there's no credit check.\nPatient: Okay, that's good. And do I pay each month by card?\nReceptionist: You can set up an automatic payment on a card or from a bank account, or pay at the desk during Mia's adjustment visit.\nPatient: Is there any discount if I pay it all upfront?\nReceptionist: Yes, five percent, so about forty-five hundred.\nPatient: I'll go with the plan. When's the first appointment to put the braces on?\nReceptionist: Next available is the twelfth, at three thirty. It takes about ninety minutes.\nPatient: Book it, please.",
+  "metadata": {
+    "gold_path": "health/dental",
+    "lang": "en",
+    "kind": "near_miss",
+    "note": "Dental treatment paid in instalments; talk of payment plans, monthly payments, interest, card, financing. Imitates finance/banking/*; true topic dental (braces, appointment, pricing)."
+  }
+}

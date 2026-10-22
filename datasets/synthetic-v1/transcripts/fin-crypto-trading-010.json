@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-trading-010",
+  "text": "Advisor: So, to recap, you've been trading mostly altcoins on a spot account for about six months?\nClient: Right. And, uh, I'm up around thirty percent but I honestly don't know if that's luck or skill.\nAdvisor: Fair question. Let's look at your trade log. You made forty-two trades. Win rate is about forty-five percent, but your average win is twice the size of your average loss. That's a positive expectancy, so it's not purely luck.\nClient: Oh, that's good to hear. I mostly just use a moving average crossover and some support levels.\nAdvisor: Okay. The weakness I see is concentration. Sixty percent of your portfolio is in two small-cap tokens. If one of them gets delisted from the exchange, you can't exit.\nClient: Yeah, there was a delisting scare last month, actually.\nAdvisor: Exactly. I'd cap any single altcoin at ten percent and keep at least thirty percent in BTC or stablecoins. Also set alerts on exchange announcements.\nClient: What about trading fees? I think I'm paying a lot.\nAdvisor: You're paying taker fees on most orders. Use limit orders and check the VIP tier discount if you pay fees in the exchange token.\nClient: Okay. And for taxes, do I report every trade?\nAdvisor: In most jurisdictions, yes, each disposal is taxable. Export the full trade history from the exchange at year end and keep it.\nClient: Alright. I'll do that. Thanks for the clear plan.",
+  "metadata": {
+    "gold_path": "finance/crypto/trading",
+    "lang": "en",
+    "kind": "normal",
+    "note": "consultation on swing trading plan and taxes on trading gains"
+  }
+}

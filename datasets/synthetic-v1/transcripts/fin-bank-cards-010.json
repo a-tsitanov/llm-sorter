@@ -1,0 +1,10 @@
+{
+  "id": "fin-bank-cards-010",
+  "text": "Representative: Welcome to the branch. How can I help?\nClient: Hi. A few things, actually. First, I forgot my PIN. I haven't used my card at an ATM in a year and now it's gone from my head.\nRepresentative: That happens. We can't tell you the PIN, but we can set a new one. You can do that at the ATM with your card and your phone verification, or in the mobile app.\nClient: Okay. The app is easier. Second, I want to lower my contactless limit. It's, um, a hundred dollars per tap, and that seems like too much if the card is stolen.\nRepresentative: Sure, you can set it to fifty, or turn off contactless entirely. In the app go to card settings, then limits.\nClient: Alright. And third, I noticed a charge of twelve ninety-nine from a subscription I don't remember. It's been going on for three months.\nRepresentative: Let me check. It's from a streaming service. Do you recognize it?\nClient: No, I definitely didn't sign up.\nRepresentative: We can dispute the charges and block that merchant. Since it's recurring, I'd also recommend replacing the card number so they can't charge again.\nClient: Yes, let's do that. Will I get my money back?\nRepresentative: We'll file a claim for the three months. You should see a decision within a few weeks.\nClient: Great, thank you.",
+  "metadata": {
+    "gold_path": "finance/banking/cards",
+    "lang": "en",
+    "kind": "normal",
+    "note": "consultation: card limits, contactless, and lost PIN"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "travel-flights-008",
+  "text": "Agent: SkyBridge Airlines, this is Hannah. How may I assist?\nPassenger: Hi, I just landed in Chicago and my connecting flight to Denver left without me. My first flight was an hour late.\nAgent: I'm sorry about that. Can I have your confirmation code?\nPassenger: Yes, it's K, three, T, nine, Q, W.\nAgent: Thank you. I see it. You were booked on the 5:40 to Denver. Since the delay was on our end, we'll rebook you at no charge. The next flight with seats is at 8:15 tonight.\nPassenger: Okay. Is there anything earlier? I've got a meeting at nine tomorrow.\nAgent: I can put you on standby for the 6:50, but no guarantees. And I'd confirm you on the 8:15 so you have a seat either way.\nPassenger: That works. What about my bag?\nAgent: Your checked bag will be transferred automatically. I'll flag it. You'll also get a meal voucher for fifteen dollars.\nPassenger: Thanks. Where do I pick it up?\nAgent: At the customer service desk at gate B12. I'm sending the new boarding pass to your email now.",
+  "metadata": {
+    "gold_path": "travel/flights",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Rebooking after missed connection"
+  }
+}

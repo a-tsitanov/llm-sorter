@@ -1,0 +1,10 @@
+{
+  "id": "travel-hotels-010",
+  "text": "Hi, this is Sarah Whitfield. I checked out of your hotel yesterday morning, room six-oh-eight, and I think I left my phone charger and a black cardigan in the closet. Also possibly a blue scarf. If anyone found them, could you please call me back at the number on my reservation? I'm happy to pay for shipping, or my friend can pick them up on Friday. The booking was under Whitfield, W-H-I-T-F-I-E-L-D. Thanks so much, and the stay was great otherwise.\nAlso, if you have a lost-and-found form I should fill out online, please send me the link by email. My address is sarah dot whitfield at example dot com. I really appreciate your help. I'm flying home on Sunday, so if it's possible to ship it before the weekend, that would be fantastic. If not, no worries, we can arrange something later. Thanks again, bye.\nHave a good day, thank you, goodbye now.",
+  "metadata": {
+    "gold_path": "travel/hotels",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Voice message to the hotel about lost property"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "tech-mobile-008",
+  "text": "Agent: Thank you for calling Connect Mobile, you're speaking with Marcus.\nCustomer: Hi Marcus. I'm calling because I just got my bill and there's a hundred and eighty dollars in roaming data charges. I was in Spain for ten days, and I thought my plan included international.\nAgent: I'm sorry about that. Can I have your phone number and the name on the account?\nCustomer: Sure, it's five-five-five, oh-one-four-two, and the name's Priya Nandakumar.\nAgent: Thanks, Priya. Let me look. Okay, you're on the Unlimited Starter plan. Starter doesn't include international roaming, only the Plus and Premium plans include it. So the data you used in Spain was billed at the pay-per-use rate, which is ten dollars per hundred megabytes.\nCustomer: Nobody told me that. I specifically asked in the store before I left.\nAgent: I understand. I can see a note from the store that you were offered the international day pass, nine dollars a day, but it wasn't added.\nCustomer: I don't remember saying no. I thought it was included. Is there anything you can do?\nAgent: Let me see what I can do as a courtesy. I can apply a one-time credit of one hundred dollars to your account, and I can add the day pass retroactively for the days you were abroad, which would reduce your charges by roughly another sixty.\nCustomer: That would be great, honestly. So I'd owe about twenty?\nAgent: Around twenty-two after adjustments. And going forward, I recommend either upgrading to Plus, which includes roaming in over a hundred countries, or buying the day pass before every trip.\nCustomer: I'll take the day pass next time. Also, can you turn on a data cap so this doesn't happen again?\nAgent: Absolutely. I'll set a usage alert at eighty percent and a hard roaming block unless you opt in.\nCustomer: Perfect. Thank you, Marcus.",
+  "metadata": {
+    "gold_path": "tech/mobile",
+    "lang": "en",
+    "kind": "normal"
+  }
+}

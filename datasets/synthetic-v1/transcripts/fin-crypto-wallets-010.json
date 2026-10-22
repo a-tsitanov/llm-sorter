@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-wallets-010",
+  "text": "Advisor: So you want to make sure that if something happens to you, your family can access the crypto in your wallet.\nClient: Exactly. My wife has no idea how any of it works. I'm worried that if I'm gone, it's just locked forever. We have around two hundred thousand dollars in assets across a few wallets.\nAdvisor: It's an important question. The simplest approach is a sealed envelope with instructions and the recovery phrase, stored in a safe deposit box, or with a lawyer.\nClient: But I don't love the idea that the lawyer holds the phrase. What if someone reads it?\nAdvisor: Right. An alternative is splitting the phrase using something like a Shamir backup. For example, three shares, and any two can recover the wallet. You give one to your wife, one to your brother, one stays in your safe.\nClient: Interesting. Is that supported on hardware wallets?\nAdvisor: Some of them, yes. Another option is a multi-signature wallet, two of three keys, where your wife holds one key, you hold one, and a trusted friend holds the third.\nClient: What about complexity? She's not technical.\nAdvisor: Then write a one-page guide, step by step, with screenshots. Test it once with a small amount. And update it yearly.\nClient: Okay. I like the Shamir idea plus the guide. Could you send me a template?\nAdvisor: Sure, I'll email you one today.",
+  "metadata": {
+    "gold_path": "finance/crypto/wallets",
+    "lang": "en",
+    "kind": "normal",
+    "note": "consultation: inheritance planning and sharing wallet access with family"
+  }
+}

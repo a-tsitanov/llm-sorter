@@ -1,0 +1,10 @@
+{
+  "id": "health-insurance-010",
+  "text": "Broker: So, you have eleven employees, and you're thinking of offering group health coverage for the first time.\nOwner: Right. I've been told it can be expensive. I'd like to keep it under four hundred a month per person if possible.\nBroker: With eleven employees you'd qualify as a small group. Employer contribution of at least fifty percent is typical. A silver-level plan runs around five hundred and ten per month for an individual. If you pay sixty percent, that's about two hundred and four per employee from you.\nOwner: And employees would pay the rest?\nBroker: Yes, through payroll deduction. You can also offer a plan with a higher deductible, which brings the premium down to four hundred and ten.\nOwner: What about dependents?\nBroker: Optional. Usually the employer covers less there, maybe thirty percent. Also, you need seventy percent participation, so at least eight of eleven need to sign up.\nOwner: Okay. Let me talk to the team. Can you send me a comparison sheet?\nBroker: Of course. I'll put together three options by Thursday.",
+  "metadata": {
+    "gold_path": "health/insurance",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Insurance broker consultation for small business group coverage"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-trading-008",
+  "text": "Mike: Dude, did you see Bitcoin last night? It just ripped.\nSam: Yeah, I saw it. I got squeezed. I had a short open on the perp, ten times leverage, and my stop was too tight, I guess, and then it wicked up and took me out.\nMike: How much did you lose?\nSam: Like, eight hundred bucks. Not the end of the world, but it hurts, you know. And then the price came back down an hour later. Typical.\nMike: That's what happens when funding is negative and everybody's short. The market goes after the liquidations. It's called a short squeeze.\nSam: I know, I know. I should've looked at the open interest. It was huge.\nMike: Right, and the order book on the exchange was thin above that level. Market makers just push through it.\nSam: So what would you do differently?\nMike: Lower leverage, honestly. Three x, and put the stop above the previous high, not right on top of it. Also, um, size down. If you risk one percent of the account per trade, a squeeze is just an annoying Tuesday.\nSam: Yeah. I was risking like ten percent. That was dumb.\nMike: Ten percent per trade. Wow. Okay. Write that down. Never again.\nSam: Never again. Let's grab a coffee Saturday, I'll show you my journal, you can roast me.\nMike: Deal.",
+  "metadata": {
+    "gold_path": "finance/crypto/trading",
+    "lang": "en",
+    "kind": "normal",
+    "note": "call between two friends about leveraged shorts and a squeeze"
+  }
+}

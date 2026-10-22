@@ -1,0 +1,10 @@
+{
+  "id": "nearmiss-012",
+  "text": "Agent: SkyBridge Airlines, customer relations. My name is Owen.\nPassenger: Hello Owen. I'm calling about flight SB two-one-nine from Chicago to Denver on the fourth. It was delayed six hours, and then my suitcase didn't arrive. I've got a travel insurance policy from my credit card, and they said I need a letter from the airline to file a claim.\nAgent: I'm sorry for the trouble. Can I get your booking reference?\nPassenger: It's K-R-seven-N-two-Q.\nAgent: Thank you, Ms. Whitfield. I can confirm that flight departed six hours and ten minutes late due to a mechanical issue. And I see a baggage report was opened at the airport for one checked bag. It's still being traced.\nPassenger: Right. So my insurance covers delay over six hours and delayed baggage, but I need documents. What can you give me?\nAgent: I can issue a delay certificate showing the scheduled and actual times, and a property irregularity report number for the bag. I'll email both within one business day.\nPassenger: Perfect. What about compensation from the airline itself? I had to buy clothes and toiletries.\nAgent: For delayed baggage, we reimburse reasonable essentials up to one hundred dollars per day, up to five days, with receipts. Please upload them to the baggage portal.\nPassenger: And the six hour delay?\nAgent: For mechanical delays over four hours, we can offer a meal voucher, and a fifty dollar travel credit toward a future flight.\nPassenger: Okay. Please send the credit too.\nAgent: Will do. I'll note it on your booking.",
+  "metadata": {
+    "gold_path": "travel/flights",
+    "lang": "en",
+    "kind": "near_miss",
+    "note": "Delayed flight and lost baggage with compensation, with much talk of insurance, claims, policy, coverage. Imitates health/insurance; true topic flights (delay, baggage)."
+  }
+}

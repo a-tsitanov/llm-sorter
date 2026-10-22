@@ -1,0 +1,10 @@
+{
+  "id": "health-insurance-009",
+  "text": "A: Did you pick your plan yet? Open enrollment ends Friday.\nB: No, I'm so confused. There's like four options. Bronze, silver, gold, and something called an HDHP.\nA: The high-deductible one, with the HSA.\nB: Right. The premium is cheaper, but the deductible is, like, three thousand five hundred.\nA: How often do you go to the doctor?\nB: Not much. I have my asthma inhaler, and one checkup a year. Oh, and the therapist every two weeks.\nA: Honestly, then the HDHP with the HSA might be good. The company puts a thousand dollars into the account, it's tax-free, and you only pay full price for therapy until you hit the deductible.\nB: Hm. But therapy is a hundred and forty a session.\nA: That adds up. Twenty-six sessions, thirty-six hundred. You'd hit the deductible by yourself.\nB: Yeah, so maybe silver then. Copay is thirty dollars for specialists.\nA: That sounds safer. Check the out-of-pocket max, too.",
+  "metadata": {
+    "gold_path": "health/insurance",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Friends chatting about choosing a health plan during open enrollment"
+  }
+}

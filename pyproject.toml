@@ -1,0 +1,59 @@
+[project]
+name = "llm-sorter"
+version = "0.1.0"
+description = "Классификация транскриптов через самообучающееся дерево тем"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "aio-pika>=10.1.1",
+    "alembic>=1.20.0",
+    "asyncpg>=0.32.0",
+    "numpy>=2.5.4",
+    "openai>=3.35.1",
+    "pgvector>=0.5.1",
+    "prometheus-client>=0.26.0",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.0",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.1",
+    "sqlalchemy[asyncio]>=2.1.5",
+    "temporalio>=1.34.0",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+llm-sorter = "llm_sorter.adapters.inbound.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.11.18,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["integration: требуют docker-инфраструктуры (postgres, rabbitmq, temporal)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "."]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+mypy_path = "src"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "respx>=0.23.1",
+    "ruff>=0.17.1",
+    "types-pyyaml>=6.0.12.20260906",
+]

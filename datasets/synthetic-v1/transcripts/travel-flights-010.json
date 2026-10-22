@@ -1,0 +1,10 @@
+{
+  "id": "travel-flights-010",
+  "text": "Customer: I got an email saying my flight was cancelled and offering a credit voucher. I don't want a voucher, I want a refund to my card.\nAgent: I understand. Can I have your booking reference?\nCustomer: Mm, Z, X, four, one, eight, B.\nAgent: Okay, Mr. Dawson. The flight from Manchester to Dublin on the twelfth was cancelled by us. You're entitled to a full refund if you choose not to travel. The voucher is optional.\nCustomer: Good. How long does it take?\nAgent: Up to seven days for card payments, sometimes faster. I'll process it now. Do you want the refund for the return portion as well?\nCustomer: Yes, I'm not going at all.\nAgent: Then I'll refund the whole booking, three hundred and twelve pounds. You'll get a confirmation email.\nCustomer: And what about the hotel I booked? That's nonrefundable.\nAgent: I'm afraid hotel costs are handled separately. You can submit receipts, and we'll review them under our compensation policy.",
+  "metadata": {
+    "gold_path": "travel/flights",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Refund request for a cancelled flight with voucher offer"
+  }
+}

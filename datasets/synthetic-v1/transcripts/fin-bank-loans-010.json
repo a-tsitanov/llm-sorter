@@ -1,0 +1,10 @@
+{
+  "id": "fin-bank-loans-010",
+  "text": "Advisor: Welcome in. So you're thinking of a personal loan to consolidate some credit card debt, right?\nClient: Yes. I have about nine thousand across three cards. The interest is crazy, like twenty-four percent.\nAdvisor: Understood. A personal loan will likely be around eleven to fourteen percent for your profile. We should look at APR, not just the interest rate, because APR includes fees.\nClient: What fees are there?\nAdvisor: Origination fee, usually one to five percent, deducted from the amount you receive. So if you borrow ten thousand with a three percent fee, you actually get nine thousand seven hundred.\nClient: Oh, I didn't realize that. So I'd need to borrow a bit more to cover the cards.\nAdvisor: Exactly. Term is also important. Three years means higher monthly payments but less interest. Five years lowers the payment, but you pay more in total.\nClient: Um, which would you pick?\nAdvisor: With your budget, I'd say four years. The payment would be about two hundred sixty dollars. And I'd suggest paying the cards off directly from the loan funds, so you're not tempted to spend the money.\nClient: Good idea. And then cut up the cards?\nAdvisor: Keep one with a low limit for emergencies, but yes, don't run the balances up again. Shall we start the application?\nClient: Yes, please.",
+  "metadata": {
+    "gold_path": "finance/banking/loans",
+    "lang": "en",
+    "kind": "normal",
+    "note": "consultation: first-time borrower asks about personal loan terms and APR"
+  }
+}

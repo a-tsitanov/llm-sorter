@@ -1,0 +1,9 @@
+{
+  "id": "tech-internet-010",
+  "text": "Agent: Hello, you've reached Northstar Fiber billing and plans. My name is Greg.\nCustomer: Hi Greg, I'm calling because I'm paying for the one gigabit plan and when I run a speed test, I'm getting like three hundred, maybe four hundred at best. I feel like I'm being ripped off.\nAgent: I understand the frustration. Is the speed test running over wifi or are you plugged in with a cable?\nCustomer: Wifi. The laptop's right next to the router though.\nAgent: Okay, so here's the thing. Wifi on a laptop rarely reaches a full gigabit. Older laptops only support wifi five, and a lot of them top out around four hundred. If you plug in with Ethernet, you should see around nine-fifty.\nCustomer: Hmm. I don't have a cable that long, but I can try my desktop, that's wired.\nAgent: Please do. Run the test, and read me the numbers, download, upload, and the ping.\nCustomer: Hold on. Okay, that's, um, nine hundred and forty down, ninety-two up. Ping eleven.\nAgent: There you go, that's perfectly in spec. Your line is delivering the full gigabit, it's your laptop wifi that's the limit.\nCustomer: Oh. Well, that's annoying. So should I downgrade to the five hundred plan then, if I only get four hundred on wifi?\nAgent: It's your call. The five hundred plan is thirty dollars less per month. But if you have wired devices, like that desktop or a game console, you'd lose that speed. I can also sell you a wifi six router for a one-time fee, or rent one for five a month.\nCustomer: Let me think. What's the router speed?\nAgent: The AX3000 model, it should get you around eight hundred on a wifi six laptop.\nCustomer: My laptop is old though.\nAgent: Then the router won't help much. I'd keep the gigabit for the desktop, or move to five hundred if you don't care.\nCustomer: I'll stay for now and talk to my wife. Thanks, Greg.",
+  "metadata": {
+    "gold_path": "tech/internet",
+    "lang": "en",
+    "kind": "normal"
+  }
+}

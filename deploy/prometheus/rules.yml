@@ -1,0 +1,18 @@
+groups:
+  - name: llm-sorter
+    rules:
+      - alert: TopicMoveAttempt
+        expr: increase(llm_sorter_topic_move_attempts_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Попытка перезаписать финальную классификацию"
+          description: "Кто-то пытался перенести файл с финальным статусом в другую тему за последние 5 минут."
+      - alert: DiscoverBlocked
+        expr: llm_sorter_discover_blocked == 1
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Discover заблокирован: {{ $labels.path }}"
+          description: "Узел {{ $labels.path }} достиг max_children, а буфер other не пуст. Нужна ручная правка дерева."

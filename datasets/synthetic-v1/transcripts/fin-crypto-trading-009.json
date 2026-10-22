@@ -1,0 +1,10 @@
+{
+  "id": "fin-crypto-trading-009",
+  "text": "Agent: Thank you for calling the exchange support line, my name is Karen. How can I help you today?\nCustomer: Hi, yes. I'm trying to place a limit order on the ETH perpetual, and it keeps getting rejected. The error says insufficient margin, but I have like four thousand dollars in my futures wallet.\nAgent: I'm sorry about that. Let me look. Could you give me your user ID?\nCustomer: Sure, it's eight-eight-one, four-four-two-zero.\nAgent: Thank you. I see here you currently have two open positions in cross margin mode, one on SOL and one on BTC, and both are in a loss. So your available margin is much lower than your wallet balance.\nCustomer: Oh. Okay. Um, so the wallet shows total, but not available.\nAgent: Exactly. The unrealized loss is eating into your available balance. Also your leverage on the ETH order is set to fifty x, which requires a larger initial margin buffer at that size.\nCustomer: Fifty x? I didn't set that. Oh wait, I think it defaulted when I switched the pair.\nAgent: It can carry over. I'd suggest lowering it to five or ten x. You can do that on the order panel, top right, next to the pair name.\nCustomer: Okay, I see it. Let me try ten. And, um, should I switch to isolated margin?\nAgent: That could protect your other positions, yes. Just be aware that you'll need to allocate margin manually to each position.\nCustomer: Got it. Thanks, it went through now.\nAgent: Wonderful. Is there anything else?\nCustomer: No, that's all. Thanks.",
+  "metadata": {
+    "gold_path": "finance/crypto/trading",
+    "lang": "en",
+    "kind": "normal",
+    "note": "exchange support call: futures order rejected, margin mode"
+  }
+}

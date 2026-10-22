@@ -1,0 +1,10 @@
+{
+  "id": "health-dental-008",
+  "text": "Receptionist: Good morning, Brightside Dental, this is Megan.\nCaller: Hi, um, I'd like to book a cleaning and a check-up. I haven't been to a dentist in, I don't know, about three years.\nReceptionist: No problem at all. Are you a new patient with us?\nCaller: Yes, I just moved to the area.\nReceptionist: Great. Do you have dental insurance, or will you be paying out of pocket?\nCaller: I have, uh, Delta something, through my employer. Let me grab the card. It's Delta Dental PPO.\nReceptionist: Perfect, we're in network with that. For a new patient the first visit includes a full exam, X-rays, and a cleaning. With your plan it's usually covered at one hundred percent for the exam and cleaning, and X-rays at eighty.\nCaller: Oh nice. And if I need a filling or something?\nReceptionist: Fillings are typically covered at eighty percent after your deductible. We'd give you an estimate before any treatment.\nCaller: Okay. What do you have open this week?\nReceptionist: I have Thursday at nine fifteen or Friday at two.\nCaller: Friday at two is good.\nReceptionist: Booked. Can I get your name and date of birth?\nCaller: Daniel Brooks, March the ninth, nineteen eighty-eight.\nReceptionist: Thanks, Daniel. Please arrive fifteen minutes early to fill out forms. Bring your insurance card and a photo ID.",
+  "metadata": {
+    "gold_path": "health/dental",
+    "lang": "en",
+    "kind": "normal",
+    "note": "Booking a dental cleaning with a new patient"
+  }
+}

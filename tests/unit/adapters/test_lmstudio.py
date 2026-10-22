@@ -1,0 +1,222 @@
+import json
+
+import httpx2
+import pytest
+from openai import AsyncOpenAI
+
+from llm_sorter.adapters.outbound.lmstudio import (
+    LMStudioDecision,
+    LMStudioEmbedder,
+    LMStudioGuard,
+    LMStudioText,
+    make_openai_client,
+)
+from llm_sorter.config import AppConfig
+from llm_sorter.domain.traversal import Candidate
+from llm_sorter.ports.models import InvalidModelOutput
+
+CHAT = "http://test/v1/chat/completions"
+EMBED = "http://test/v1/embeddings"
+
+
+class Route:
+    """Мок HTTP-транспорта openai (он работает на httpx2, respx его не патчит)."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx2.Request] = []
+        self.responses: dict[str, httpx2.Response] = {}
+
+    def handler(self, request: httpx2.Request) -> httpx2.Response:
+        self.requests.append(request)
+        return self.responses[str(request.url)]
+
+    def mock(self, url: str, response: httpx2.Response) -> None:
+        self.responses[url] = response
+
+    @property
+    def last_body(self) -> dict:
+        return json.loads(self.requests[-1].content)
+
+
+_route = Route()
+
+
+@pytest.fixture(autouse=True)
+def route() -> Route:
+    global _route
+    _route = Route()
+    return _route
+
+
+def _client() -> AsyncOpenAI:
+    http = httpx2.AsyncClient(transport=httpx2.MockTransport(_route.handler))
+    return AsyncOpenAI(base_url="http://test/v1", api_key="x", http_client=http)
+
+
+def _chat(content: str) -> httpx2.Response:
+    return httpx2.Response(
+        200,
+        json={
+            "id": "c1",
+            "object": "chat.completion",
+            "created": 0,
+            "model": "m",
+            "choices": [
+                {
+                    "index": 0,
+                    "finish_reason": "stop",
+                    "message": {"role": "assistant", "content": content},
+                }
+            ],
+        },
+    )
+
+
+def _cands() -> list[Candidate]:
+    return [
+        Candidate(id="crypto", title="Крипто", description="Криптовалюты", examples=["a"] * 5),
+        Candidate(id="banks", title="Банки", description="Банковские услуги"),
+        Candidate(id="other", title="Other", description="Ничего не подходит"),
+    ]
+
+
+async def test_decide_returns_choice(route: Route) -> None:
+    route.mock(CHAT, _chat('{"choice":"crypto"}'))
+    result = await LMStudioDecision(_client(), "m").decide("текст", _cands())
+    assert result == "crypto"
+    body = route.last_body
+    assert body["temperature"] == 0
+    fmt = body["response_format"]
+    assert fmt["type"] == "json_schema"
+    assert fmt["json_schema"]["strict"] is True
+    assert fmt["json_schema"]["schema"]["properties"]["choice"]["enum"] == [
+        "crypto",
+        "banks",
+        "other",
+    ]
+    user = body["messages"][-1]["content"]
+    assert "crypto" in user and "текст" in user
+    assert user.count("пример:") == 3  # не более 3 примеров
+
+
+async def test_decide_out_of_enum_raises(route: Route) -> None:
+    route.mock(CHAT, _chat('{"choice":"nft"}'))
+    with pytest.raises(InvalidModelOutput):
+        await LMStudioDecision(_client(), "m").decide("t", _cands())
+
+
+async def test_decide_bad_json_raises(route: Route) -> None:
+    route.mock(CHAT, _chat("crypto"))
+    with pytest.raises(InvalidModelOutput):
+        await LMStudioDecision(_client(), "m").decide("t", _cands())
+
+
+async def test_guard_yes_no(route: Route) -> None:
+    route.mock(CHAT, _chat('{"answer":"yes"}'))
+    guard = LMStudioGuard(_client(), "m")
+    assert await guard.check("t", "q?") is True
+    body = route.last_body
+    assert body["temperature"] == 0
+    assert body["response_format"]["json_schema"]["schema"]["properties"]["answer"]["enum"] == [
+        "yes",
+        "no",
+    ]
+    route.mock(CHAT, _chat('{"answer":"no"}'))
+    assert await guard.check("t", "q?") is False
+
+
+async def test_guard_invalid_raises(route: Route) -> None:
+    route.mock(CHAT, _chat('{"answer":"maybe"}'))
+    with pytest.raises(InvalidModelOutput):
+        await LMStudioGuard(_client(), "m").check("t", "q?")
+
+
+async def test_propose_topic_parses(route: Route) -> None:
+    payload = {
+        "id": "defi_news",
+        "title": "DeFi",
+        "description": "Новости DeFi",
+        "examples": ["e1", "e2"],
+        "guard": "Обсуждается ли DeFi?",
+    }
+    route.mock(CHAT, _chat(json.dumps(payload)))
+    proposal = await LMStudioText(_client(), "m").propose_topic(
+        ["s1", "s2"], "root/crypto", _cands()[:2], "ru"
+    )
+    assert proposal.id == "defi_news"
+    assert proposal.examples == ["e1", "e2"]
+    body = route.last_body
+    assert body["temperature"] == 0.2
+    assert "root/crypto" in body["messages"][-1]["content"]
+
+
+async def test_propose_topic_drops_blank_examples(route: Route) -> None:
+    # модель вернула examples: [""] - в дерево пустые примеры не попадают
+    payload = {
+        "id": "defi",
+        "title": "DeFi",
+        "description": "d",
+        "examples": ["", "  ", " фраза "],
+        "guard": "g",
+    }
+    route.mock(CHAT, _chat(json.dumps(payload)))
+    proposal = await LMStudioText(_client(), "m").propose_topic(["s"], "root", [], "ru")
+    assert proposal.examples == ["фраза"]
+
+
+async def test_propose_topic_bad_id_raises(route: Route) -> None:
+    payload = {"id": "Bad Id", "title": "t", "description": "d", "examples": [], "guard": "g"}
+    route.mock(CHAT, _chat(json.dumps(payload)))
+    with pytest.raises(InvalidModelOutput):
+        await LMStudioText(_client(), "m").propose_topic(["s"], "root", [], "ru")
+
+
+async def test_propose_topic_missing_field_raises(route: Route) -> None:
+    route.mock(CHAT, _chat('{"id":"x"}'))
+    with pytest.raises(InvalidModelOutput):
+        await LMStudioText(_client(), "m").propose_topic(["s"], "root", [], "ru")
+
+
+async def test_translate_and_summarize(route: Route) -> None:
+    route.mock(CHAT, _chat("  результат \n"))
+    text = LMStudioText(_client(), "m")
+    assert await text.translate("hello", "ru") == "результат"
+    assert route.last_body["temperature"] == 0.2
+    assert await text.summarize("long", "ru") == "результат"
+
+
+async def test_same_topic(route: Route) -> None:
+    route.mock(CHAT, _chat('{"answer":"yes"}'))
+    a, b = _cands()[:2]
+    assert await LMStudioText(_client(), "m").same_topic(a, b) is True
+    assert route.last_body["temperature"] == 0
+
+
+async def test_embed_order(route: Route) -> None:
+    route.mock(
+        EMBED,
+        httpx2.Response(
+            200,
+            json={
+                "object": "list",
+                "model": "e",
+                "usage": {"prompt_tokens": 1, "total_tokens": 1},
+                "data": [
+                    {"object": "embedding", "index": 1, "embedding": [0.0, 1.0]},
+                    {"object": "embedding", "index": 0, "embedding": [1.0, 0.0]},
+                ],
+            },
+        ),
+    )
+    vecs = await LMStudioEmbedder(_client(), "e").embed(["a", "b"])
+    assert vecs == [[1.0, 0.0], [0.0, 1.0]]
+    assert route.last_body["input"] == ["a", "b"]
+
+
+def test_make_openai_client() -> None:
+    client = make_openai_client(AppConfig(lmstudio_url="http://x:1/v1", lmstudio_api_key="k"))
+    assert str(client.base_url).startswith("http://x:1/v1")
+    assert client.api_key == "k"
+    # ретраи — дело Temporal, таймаут меньше start_to_close activity (120 с)
+    assert client.max_retries == 0
+    assert client.timeout == 110
