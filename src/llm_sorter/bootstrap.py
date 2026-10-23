@@ -15,6 +15,7 @@ from llm_sorter.adapters.outbound.llm import (
 from llm_sorter.adapters.outbound.noop_metrics import NoopMetrics
 from llm_sorter.adapters.outbound.prometheus_metrics import PrometheusMetrics
 from llm_sorter.adapters.outbound.sqlite_store import SqliteTopicStore
+from llm_sorter.application.discover import DiscoverService
 from llm_sorter.application.process import ProcessService
 from llm_sorter.config import AppConfig
 from llm_sorter.ports.metrics import Metrics
@@ -55,3 +56,12 @@ async def build_processor(
     store = await SqliteTopicStore.open(cfg.sqlite_path)
     service = ProcessService(models["decision"], models["guard"], build_metrics(metrics_port))
     return service, TreeCache(store, cfg.tree_refresh_s), store
+
+
+async def build_learner(
+    cfg: AppConfig, metrics_port: int, overrides: dict[str, Any] | None = None
+) -> tuple[DiscoverService, Metrics, SqliteTopicStore]:
+    models = build_models(cfg, overrides)
+    metrics = build_metrics(metrics_port)
+    store = await SqliteTopicStore.open(cfg.sqlite_path)
+    return DiscoverService(models["embedder"], models["text"], metrics), metrics, store

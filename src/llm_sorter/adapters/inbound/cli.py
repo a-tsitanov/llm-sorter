@@ -8,6 +8,7 @@ from typing import Annotated
 
 import typer
 
+from llm_sorter.adapters.inbound.learner_runner import LearnerLock, run_learner
 from llm_sorter.adapters.inbound.poller import run_poller
 from llm_sorter.adapters.inbound.processor import run_processor
 from llm_sorter.adapters.inbound.stub_source import LocalDirSource
@@ -15,7 +16,7 @@ from llm_sorter.adapters.inbound.telegram_source import TelegramSource, Telethon
 from llm_sorter.adapters.outbound.rabbit import InboxPublisher, Names
 from llm_sorter.adapters.outbound.sqlite_store import SqliteTopicStore
 from llm_sorter.application.topics import TopicsService
-from llm_sorter.bootstrap import build_processor
+from llm_sorter.bootstrap import build_learner, build_processor
 from llm_sorter.config import AppConfig
 from llm_sorter.domain.tree import ROOT_ID
 from llm_sorter.domain.validation import TreeValidationError
@@ -241,3 +242,37 @@ def process(
             await store.close()
 
     _serve(main)
+
+
+@app.command("learn")
+def learn(
+    metrics_port: Annotated[int | None, typer.Option(help="0 - без метрик")] = None,
+) -> None:
+    """Дообучение: буферы из stream other, discover по порогу, перегон в inbox."""
+    cfg = AppConfig()
+    lock_path = cfg.sqlite_path.with_name(cfg.sqlite_path.name + ".learner.lock")
+
+    async def main(stop: asyncio.Event) -> None:
+        port = cfg.learner_metrics_port if metrics_port is None else metrics_port
+        discover, metrics, store = await build_learner(cfg, port)
+        try:
+            await run_learner(
+                cfg.rabbit_url,
+                Names.from_config(cfg),
+                store,
+                discover,
+                metrics,
+                cfg.learner_check_s,
+                cfg.other_refresh_s,
+                cfg.other_max_age,
+                cfg.other_max_bytes,
+                stop,
+            )
+        finally:
+            await store.close()
+
+    try:
+        with LearnerLock(lock_path):
+            _serve(main)
+    except RuntimeError as e:
+        raise _fail(str(e)) from e

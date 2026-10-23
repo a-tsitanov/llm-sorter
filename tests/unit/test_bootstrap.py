@@ -29,3 +29,18 @@ async def test_unknown_override_rejected(tmp_path: Path) -> None:
     cfg = AppConfig(_env_file=None, sqlite_path=tmp_path / "s.db")  # type: ignore[call-arg]
     with pytest.raises(ValueError, match="unknown overrides"):
         await build_processor(cfg, metrics_port=0, overrides={"nope": 1})
+
+
+async def test_build_learner_uses_overrides(tmp_path: Path) -> None:
+    from llm_sorter.application.discover import DiscoverService
+    from llm_sorter.bootstrap import build_learner
+    from tests.fakes import FakeEmbedder, FakeText
+
+    cfg = AppConfig(_env_file=None, sqlite_path=tmp_path / "s.db")  # type: ignore[call-arg]
+    discover, metrics, store = await build_learner(
+        cfg, metrics_port=0, overrides={"text": FakeText(), "embedder": FakeEmbedder()}
+    )
+    try:
+        assert isinstance(discover, DiscoverService) and isinstance(metrics, NoopMetrics)
+    finally:
+        await store.close()

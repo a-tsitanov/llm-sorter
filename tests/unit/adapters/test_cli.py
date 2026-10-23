@@ -71,3 +71,7 @@ def test_feed_tg_requires_folders(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TG_FOLDERS", "")
     r = runner.invoke(app, ["feed", "tg"])
     assert r.exit_code == 1 and "TG_FOLDERS" in r.output
+
+
+def test_help_lists_learn() -> None:
+    assert "learn" in runner.invoke(app, ["--help"]).output
