@@ -1,98 +1,61 @@
 import pytest
 
-from llm_sorter.domain.loader import load_tree
-from llm_sorter.domain.validation import TreeValidationError, validate_tree
-
-VALID = """
-node:
-  id: root
-  children:
-    - id: finance
-      title: Финансы
-      description: Деньги
-      children:
-        - id: crypto
-          title: Крипта
-          description: Крипта
-          actions: [{type: save}, {type: rocket, channel: "#c"}]
-"""
+from llm_sorter.domain.tree import Tree
+from llm_sorter.domain.validation import TreeValidationError, guard_is_meaningful, validate_tree
+from tests.helpers import make_tree, topic
 
 
-def _child(id_: str, uid: str | None = None, title: str = "T", desc: str = "D") -> str:
-    uid_part = f", uid: {uid}" if uid else ""
-    return f"{{id: {id_}, title: '{title}', description: '{desc}'{uid_part}}}"
+def test_valid_tree_passes(tree: Tree) -> None:
+    validate_tree(tree)
 
 
-def _errors(text: str) -> list[str]:
-    with pytest.raises(TreeValidationError) as exc:
-        validate_tree(load_tree(text))
-    return exc.value.errors
+@pytest.mark.parametrize("bad", ["Finance", "a-b", "", "ф"])
+def test_id_pattern(bad: str) -> None:
+    with pytest.raises(TreeValidationError, match="invalid id"):
+        validate_tree(make_tree(topic(bad)))
 
 
-def test_valid_tree_passes():
-    validate_tree(load_tree(VALID))
+@pytest.mark.parametrize("reserved", ["other", "root"])
+def test_reserved_ids(reserved: str) -> None:
+    # topic("root") подменяет корень: у него появляется родитель
+    with pytest.raises(TreeValidationError, match="reserved"):
+        validate_tree(make_tree(topic(reserved)))
 
 
-def test_id_pattern():
-    errs = _errors(f"node: {{id: root, children: [{_child('Bad-Id')}]}}")
-    assert len(errs) == 1 and "id" in errs[0]
+def test_depth_exceeded() -> None:
+    t = make_tree(topic("a"), topic("b", "a"), max_depth=1)
+    with pytest.raises(TreeValidationError, match="exceeds max_depth"):
+        validate_tree(t)
 
 
-def test_other_reserved():
-    errs = _errors(f"node: {{id: root, children: [{_child('other')}]}}")
-    assert any("other" in e for e in errs)
+def test_node_max_depth_override() -> None:
+    validate_tree(make_tree(topic("a", max_depth=2), topic("b", "a"), max_depth=1))
 
 
-def test_duplicate_sibling_id():
-    errs = _errors(f"node: {{id: root, children: [{_child('a')}, {_child('a')}]}}")
-    assert any("duplicate id" in e for e in errs)
+@pytest.mark.parametrize("field", ["title", "description"])
+def test_empty_text_fields(field: str) -> None:
+    with pytest.raises(TreeValidationError, match=f"empty {field}"):
+        validate_tree(make_tree(topic("a", **{field: " "})))
 
 
-def test_same_id_in_different_branches_ok():
-    nested = f"{{id: p, title: T, description: D, children: [{_child('a')}]}}"
-    validate_tree(load_tree(f"node: {{id: root, children: [{nested}, {_child('a')}]}}"))
+def test_collects_all_errors() -> None:
+    with pytest.raises(TreeValidationError) as e:
+        validate_tree(make_tree(topic("A"), topic("b", title="")))
+    assert len(e.value.errors) == 2
 
 
-def test_duplicate_uid():
-    errs = _errors(f"node: {{id: root, children: [{_child('a', 'u1')}, {_child('b', 'u1')}]}}")
-    assert any("duplicate uid" in e for e in errs)
-
-
-def test_duplicate_uid_with_archived():
-    text = (
-        f"node: {{id: root, children: [{_child('a', 'u1')}]}}\n"
-        "archived: [{uid: u1, path: x, parent_uid: null}]\n"
-    )
-    assert any("duplicate uid" in e for e in _errors(text))
-
-
-def test_depth_exceeded():
-    inner = _child("b")
-    outer = f"{{id: a, title: T, description: D, children: [{inner}]}}"
-    errs = _errors(f"settings: {{max_depth: 1}}\nnode: {{id: root, children: [{outer}]}}")
-    assert any("depth" in e for e in errs)
-
-
-def test_node_max_depth_override():
-    inner = _child("b")
-    outer = f"{{id: a, title: T, description: D, max_depth: 2, children: [{inner}]}}"
-    validate_tree(load_tree(f"settings: {{max_depth: 1}}\nnode: {{id: root, children: [{outer}]}}"))
-
-
-def test_empty_title():
-    errs = _errors(f"node: {{id: root, children: [{_child('a', title='')}]}}")
-    assert any("title" in e for e in errs)
-
-
-def test_empty_description():
-    errs = _errors(f"node: {{id: root, children: [{_child('a', desc='')}]}}")
-    assert any("description" in e for e in errs)
-
-
-def test_root_needs_no_title():
-    validate_tree(load_tree("node: {id: root}"))
-
-
-def test_collects_all_errors():
-    errs = _errors(f"node: {{id: root, children: [{_child('other')}, {_child('a', title='')}]}}")
-    assert len(errs) == 2
+@pytest.mark.parametrize(
+    "q,ok",
+    [
+        (None, False),
+        ("", False),
+        ("yes", False),
+        ("Да", False),
+        ("Да, если в разговоре упоминаются технологии, тренды, обновления", False),
+        ("Пост о банковских картах или их тарифах?", True),
+        ("Is this about mobile phones?", True),
+        ("Нет?", False),
+    ],
+)
+def test_guard_is_meaningful(q: str | None, ok: bool) -> None:
+    assert guard_is_meaningful(q) is ok

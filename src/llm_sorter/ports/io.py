@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from llm_sorter.domain.classification import Transcript
+from llm_sorter.domain.messages import Transcript
 
 
 class TranscriptSource(Protocol):

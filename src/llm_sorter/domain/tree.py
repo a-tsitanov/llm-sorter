@@ -1,11 +1,12 @@
-from collections.abc import Iterator
+"""Дерево тем: плоский словарь тем со ссылкой на родителя, корень - тема `root`."""
+
+from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from llm_sorter.domain.actions import Action, SaveAction
-
 OTHER_ID = "other"
+ROOT_ID = "root"
 
 
 class _Frozen(BaseModel):
@@ -27,90 +28,80 @@ class DiscoverSettings(_Frozen):
 class Settings(_Frozen):
     max_depth: int = 3
     language: str = "ru"
+    # после стольких перегонов сообщение, снова попавшее в other, остаётся там навсегда
+    max_reprocess: int = 3
     discover: DiscoverSettings = Field(default_factory=DiscoverSettings)
 
 
-class Defaults(_Frozen):
-    guard_failed_action: Action = SaveAction(type="save", path="_guard_failed")
-
-
-class Node(_Frozen):
-    uid: str
+class Topic(_Frozen):
     id: str
+    parent_id: str | None
     title: str = ""
     description: str = ""
     examples: list[str] = Field(default_factory=list)
     guard: str | None = None
-    actions: list[Action] = Field(default_factory=list)
     origin: Literal["manual", "discovered"] = "manual"
     max_depth: int | None = None
-    children: list["Node"] = Field(default_factory=list)
 
 
-class ArchivedNode(_Frozen):
-    uid: str
-    path: str
-    parent_uid: str | None
+@dataclass(frozen=True)
+class Tree:
+    """Снимок дерева в памяти. Порядок `topics` (порядок вставки) - порядок детей."""
 
+    rev: int
+    settings: Settings
+    topics: dict[str, Topic]
+    _children: dict[str, list[str]] = field(init=False, repr=False, compare=False)
 
-class RuleTree(_Frozen):
-    version: int | None = None
-    settings: Settings = Field(default_factory=Settings)
-    defaults: Defaults = Field(default_factory=Defaults)
-    root: Node
-    archived: list[ArchivedNode] = Field(default_factory=list)
+    def __post_init__(self) -> None:
+        children: dict[str, list[str]] = {}
+        for t in self.topics.values():
+            if t.parent_id is not None:
+                children.setdefault(t.parent_id, []).append(t.id)
+        object.__setattr__(self, "_children", children)
 
-    def iter_nodes(self) -> Iterator[Node]:
-        """Обход в глубину, root первым."""
-        stack = [self.root]
-        while stack:
-            node = stack.pop()
-            yield node
-            stack.extend(reversed(node.children))
+    @staticmethod
+    def empty(settings: Settings | None = None) -> "Tree":
+        return Tree(
+            rev=0,
+            settings=settings or Settings(),
+            topics={ROOT_ID: Topic(id=ROOT_ID, parent_id=None)},
+        )
 
-    def _chain(self, uid: str) -> list[Node]:
-        """Цепочка предков от root до узла включительно."""
+    def get(self, id: str) -> Topic:
+        return self.topics[id]
 
-        def walk(node: Node, acc: list[Node]) -> list[Node] | None:
-            acc = [*acc, node]
-            if node.uid == uid:
-                return acc
-            for child in node.children:
-                found = walk(child, acc)
-                if found is not None:
-                    return found
-            return None
+    def children(self, id: str) -> list[Topic]:
+        return [self.topics[c] for c in self._children.get(id, [])]
 
-        chain = walk(self.root, [])
-        if chain is None:
-            raise KeyError(uid)
-        return chain
+    def parent(self, id: str) -> Topic | None:
+        p = self.get(id).parent_id
+        return None if p is None else self.topics[p]
 
-    def find(self, uid: str) -> Node:
-        return self._chain(uid)[-1]
+    def _chain(self, id: str) -> list[Topic]:
+        """Цепочка от root до темы включительно."""
+        chain = [self.get(id)]
+        while chain[-1].parent_id is not None:
+            chain.append(self.topics[chain[-1].parent_id])
+        return chain[::-1]
 
-    def parent_of(self, uid: str) -> Node | None:
-        chain = self._chain(uid)
-        return chain[-2] if len(chain) > 1 else None
+    def path(self, id: str) -> list[str]:
+        return [t.id for t in self._chain(id)[1:]]
 
-    def path_of(self, uid: str) -> str:
-        return "/".join(n.id for n in self._chain(uid)[1:])
+    def routing_key(self, id: str) -> str:
+        return ".".join(self.path(id))
 
-    def depth_of(self, uid: str) -> int:
-        return len(self._chain(uid)) - 1
+    def depth(self, id: str) -> int:
+        return len(self._chain(id)) - 1
 
-    def max_depth_for(self, uid: str) -> int:
-        for node in reversed(self._chain(uid)):
-            if node.max_depth is not None:
-                return node.max_depth
+    def max_depth_for(self, id: str) -> int:
+        for t in reversed(self._chain(id)):
+            if t.max_depth is not None:
+                return t.max_depth
         return self.settings.max_depth
 
-    def has_other(self, uid: str) -> bool:
-        return uid == self.root.uid or bool(self.find(uid).children)
+    def has_other(self, id: str) -> bool:
+        return id == ROOT_ID or bool(self._children.get(id))
 
-    def other_path(self, uid: str) -> str:
-        path = self.path_of(uid)
-        return f"{path}/{OTHER_ID}" if path else OTHER_ID
-
-
-Node.model_rebuild()
+    def is_leaf(self, id: str) -> bool:
+        return id != ROOT_ID and not self._children.get(id)

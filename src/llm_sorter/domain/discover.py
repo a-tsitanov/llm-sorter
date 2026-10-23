@@ -2,8 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from llm_sorter.domain.tree import OTHER_ID, DiscoverSettings, RuleTree
-from llm_sorter.domain.validation import ID_RE
+from llm_sorter.domain.tree import DiscoverSettings, Tree
+from llm_sorter.domain.validation import ID_RE, RESERVED_IDS, guard_is_meaningful
 
 
 class TopicProposal(BaseModel):
@@ -16,21 +16,17 @@ class TopicProposal(BaseModel):
     guard: str
 
 
-def slots_left(tree: RuleTree, uid: str) -> int:
-    return tree.settings.discover.max_children - len(tree.find(uid).children)
+def slots_left(tree: Tree, node_id: str) -> int:
+    return tree.settings.discover.max_children - len(tree.children(node_id))
 
 
-def should_discover(tree: RuleTree, uid: str, new_count: int) -> bool:
+def should_discover(tree: Tree, node_id: str, new_count: int) -> bool:
+    """Узел (в том числе лист) набрал порог, есть запас глубины и свободные слоты."""
     return (
         new_count >= tree.settings.discover.buffer_threshold
-        and tree.depth_of(uid) < tree.max_depth_for(uid)
-        and slots_left(tree, uid) > 0
+        and tree.depth(node_id) < tree.max_depth_for(node_id)
+        and slots_left(tree, node_id) > 0
     )
-
-
-def discover_blocked(tree: RuleTree, uid: str, other_size: int) -> bool:
-    """Узел упёрся в max_children, а буфер other не пуст: discover его уже не разберёт."""
-    return slots_left(tree, uid) <= 0 and other_size > 0
 
 
 def dedup_verdict(similarity: float, s: DiscoverSettings) -> Literal["dup", "ask", "new"]:
@@ -42,10 +38,11 @@ def dedup_verdict(similarity: float, s: DiscoverSettings) -> Literal["dup", "ask
 
 
 def proposal_is_valid(p: TopicProposal) -> bool:
-    """Предложение пройдёт validate_tree: корректный id (не other), непустые title и description."""
+    """Предложение пройдёт validate_tree и несёт осмысленный вопрос гейта."""
     return (
         bool(ID_RE.match(p.id))
-        and p.id != OTHER_ID
+        and p.id not in RESERVED_IDS
         and bool(p.title.strip())
         and bool(p.description.strip())
+        and guard_is_meaningful(p.guard)
     )

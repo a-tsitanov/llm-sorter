@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,29 +9,41 @@ class AppConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    lmstudio_url: str = "http://localhost:1234/v1"
-    lmstudio_api_key: str = "lm-studio"
+    # OpenAI-совместимый сервер моделей (vLLM, LM Studio ...)
+    llm_url: str = "http://localhost:1234/v1"
+    llm_api_key: SecretStr = SecretStr("lm-studio")
     model_decide: str = "lfm2"
     model_guard: str = "qwen3-4b"
     model_text: str = "qwen3-4b"
     model_embed: str = "bge-m3"
-    database_url: str = "postgresql+asyncpg://sorter:sorter@localhost:5432/sorter"
+
+    # дерево тем, журнал и позиция дообучения в stream
+    sqlite_path: Path = Path("./data/sorter.db")
+
     rabbit_url: str = "amqp://guest:guest@localhost:5672/"
-    queue_name: str = "transcripts"
-    temporal_address: str = "localhost:7233"
-    temporal_namespace: str = "default"
-    task_queue: str = "llm-sorter"
-    storage_root: Path = Path("./data/out")
+    inbox_queue: str = "llm-sorter.inbox"
+    classified_exchange: str = "llm-sorter.classified"
+    classified_archive: str = "llm-sorter.classified.all"
+    other_stream: str = "llm-sorter.other"
+    other_max_age: str = "30D"
+    other_max_bytes: int = 10 * 1024**3
+
+    # одновременно обрабатываемых сообщений в одном процессе-обработчике
+    process_concurrency: int = 16
+    # как часто обработчик сверяет tree_rev
+    tree_refresh_s: float = 1.0
+    # как часто дообучение проверяет пороги и сохраняет позицию в stream
+    learner_check_s: float = 30.0
+    # как часто дообучение переиздаёт старые ждущие сообщения (против ретеншна stream)
+    other_refresh_s: float = 86400.0
+    metrics_port: int = 9100
+    learner_metrics_port: int = 9101
+
+    # фидер каталога
     source_dir: Path = Path("./data/inbox")
     poll_interval_s: float = 10.0
-    metrics_port: int = 9100
-    sweep_interval_s: int = 600
-    # активностей на воркер одновременно; LM Studio обслуживает ~4 запроса на модель,
-    # лишние ждут в очереди и падают по таймауту
-    max_concurrent_activities: int = 8
-    sweep_schedule_id: str = "llm-sorter-sweep"
-    # источник для ingest: каталог SOURCE_DIR или папки Telegram
-    ingest_source: Literal["dir", "telegram"] = "dir"
+
+    # фидер Telegram
     tg_api_id: int = 0
     tg_api_hash: SecretStr = SecretStr("")
     # Telethon StringSession

@@ -7,7 +7,6 @@ from typing import Any
 from openai import AsyncOpenAI
 from pydantic import ValidationError
 
-from llm_sorter.config import AppConfig
 from llm_sorter.domain.discover import TopicProposal
 from llm_sorter.domain.traversal import Candidate
 from llm_sorter.ports.models import InvalidModelOutput
@@ -18,11 +17,9 @@ _GENERATION_TEMPERATURE = 0.2
 _LANG_NOTE = "Транскрипт может быть на любом языке; оценивай смысл независимо от языка."
 
 
-def make_openai_client(cfg: AppConfig) -> AsyncOpenAI:
-    # ретраи делает Temporal; таймаут ниже start_to_close activity (120 с)
-    return AsyncOpenAI(
-        base_url=cfg.lmstudio_url, api_key=cfg.lmstudio_api_key, timeout=110, max_retries=0
-    )
+def make_openai_client(url: str, api_key: str) -> AsyncOpenAI:
+    # ретраи с backoff делает обработчик; max_retries=0, чтобы не удваивать ожидание
+    return AsyncOpenAI(base_url=url, api_key=api_key, timeout=110, max_retries=0)
 
 
 def _schema(name: str, schema: dict[str, Any]) -> dict[str, Any]:

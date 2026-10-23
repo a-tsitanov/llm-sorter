@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 
-from llm_sorter.domain.tree import OTHER_ID, Node, RuleTree
+from llm_sorter.domain.tree import OTHER_ID, Topic, Tree
 
 
 class Candidate(BaseModel):
@@ -15,28 +15,25 @@ class Candidate(BaseModel):
 _OTHER = Candidate(id=OTHER_ID, title="Other", description="Ничего из перечисленного не подходит")
 
 
-def candidates_for(tree: RuleTree, uid: str) -> list[Candidate]:
-    """Живые дети по порядку + `other` последним; у листа кандидатов нет."""
-    if not tree.has_other(uid):
+def candidates_for(tree: Tree, node_id: str) -> list[Candidate]:
+    """Дети по порядку + `other` последним; у листа кандидатов нет."""
+    if not tree.has_other(node_id):
         return []
     children = [
         Candidate(id=c.id, title=c.title, description=c.description, examples=list(c.examples))
-        for c in tree.find(uid).children
+        for c in tree.children(node_id)
     ]
     return [*children, _OTHER]
 
 
-def resolve_choice(tree: RuleTree, uid: str, choice_id: str) -> str | None:
-    """uid выбранного ребёнка; None для `other`; ValueError для неизвестного id."""
+def resolve_choice(tree: Tree, node_id: str, choice_id: str) -> str | None:
+    """id выбранного ребёнка; None для `other`; ValueError для неизвестного id."""
     if choice_id == OTHER_ID:
         return None
-    for child in tree.find(uid).children:
-        if child.id == choice_id:
-            return child.uid
-    raise ValueError(f"unknown choice {choice_id!r} at {tree.path_of(uid) or 'root'}")
+    if any(c.id == choice_id for c in tree.children(node_id)):
+        return choice_id
+    raise ValueError(f"unknown choice {choice_id!r} at {tree.routing_key(node_id) or 'root'}")
 
 
-def guard_question(node: Node) -> str:
-    return node.guard or (
-        f"Этот разговор действительно на тему «{node.title}»: {node.description}?"
-    )
+def guard_question(t: Topic) -> str:
+    return t.guard or f"Этот разговор действительно на тему «{t.title}»: {t.description}?"

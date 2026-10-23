@@ -5,7 +5,6 @@ from collections import Counter
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from llm_sorter.domain.classification import Status
 from llm_sorter.domain.discover import TopicProposal
 from llm_sorter.domain.traversal import Candidate
 
@@ -13,45 +12,34 @@ from llm_sorter.domain.traversal import Candidate
 class RecordingMetrics:
     def __init__(self) -> None:
         self.counts: Counter[str] = Counter()
+        self.processed_by: Counter[str] = Counter()
         self.buffer_sizes: list[tuple[str, int]] = []
-        self.discover_blocked_by_path: dict[str, bool] = {}
+        self.discover_blocked_by_node: dict[str, bool] = {}
+        self.discover_runs: list[tuple[str, int, int]] = []
 
-    def file_classified(self, path: str, status: Status, version: int) -> None:
-        self.counts["file_classified"] += 1
+    def processed(self, outcome: str) -> None:
+        self.processed_by[outcome] += 1
 
     def model_call(self, role: str, latency_s: float, ok: bool) -> None:
-        self.counts["model_call"] += 1
+        self.counts[f"model_call:{role}:{ok}"] += 1
 
     def model_error(self, role: str) -> None:
         self.counts[f"model_error:{role}"] += 1
 
     def guard_result(self, path: str, passed: bool) -> None:
-        self.counts["guard_result"] += 1
+        self.counts[f"guard:{path}:{passed}"] += 1
 
-    def action_done(self, action_type: str, ok: bool, latency_s: float) -> None:
-        self.counts["action_done"] += 1
+    def buffer_size(self, node: str, size: int) -> None:
+        self.buffer_sizes.append((node, size))
 
-    def buffer_size(self, path: str, size: int) -> None:
-        self.counts["buffer_size"] += 1
-        self.buffer_sizes.append((path, size))
+    def discover_run(self, node: str, created: int, rejected: int) -> None:
+        self.discover_runs.append((node, created, rejected))
 
-    def discover_run(self, path: str, created: int, rejected: int) -> None:
-        self.counts["discover_run"] += 1
+    def discover_blocked(self, node: str, blocked: bool) -> None:
+        self.discover_blocked_by_node[node] = blocked
 
-    def reprocess_moved(self, from_path: str, to_path: str) -> None:
-        self.counts["reprocess_moved"] += 1
-
-    def discover_blocked(self, path: str, blocked: bool) -> None:
-        self.discover_blocked_by_path[path] = blocked
-
-    def topic_move_attempt(self) -> None:
-        self.counts["topic_move_attempt"] += 1
-
-    def active_version(self, v: int) -> None:
-        self.counts["active_version"] += 1
-
-    def rules_published(self, source: str) -> None:
-        self.counts["rules_published"] += 1
+    def tree_rev(self, rev: int) -> None:
+        self.counts["tree_rev"] = rev
 
 
 DecisionAnswers = Mapping[Any, str | list[str]] | Callable[[str, list[Candidate]], str]

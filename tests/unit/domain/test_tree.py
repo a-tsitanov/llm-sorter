@@ -1,51 +1,40 @@
 import pytest
-from pydantic import ValidationError
 
-from llm_sorter.domain.loader import load_tree
-
-YAML = """
-settings: {max_depth: 4}
-node:
-  id: root
-  children:
-    - id: a
-      max_depth: 2
-      children:
-        - id: b
-          children:
-            - id: c
-    - id: d
-"""
+from llm_sorter.domain.tree import ROOT_ID, Tree
+from tests.helpers import make_tree, topic
 
 
-def uid(t, node_id):
-    return next(n.uid for n in t.iter_nodes() if n.id == node_id)
+def test_navigation(tree: Tree) -> None:
+    assert [t.id for t in tree.children(ROOT_ID)] == ["finance", "tech"]
+    assert tree.parent("cards").id == "finance"
+    assert tree.parent(ROOT_ID) is None
+    assert tree.path("cards") == ["finance", "cards"]
+    assert tree.path(ROOT_ID) == []
+    assert tree.depth("cards") == 2 and tree.depth(ROOT_ID) == 0
 
 
-def test_navigation():
-    t = load_tree(YAML)
-    assert [n.id for n in t.iter_nodes()] == ["root", "a", "b", "c", "d"]
-    assert t.find(uid(t, "b")).id == "b"
-    assert t.parent_of(uid(t, "b")).id == "a"
-    assert t.parent_of(t.root.uid) is None
-    assert t.path_of(t.root.uid) == "" and t.path_of(uid(t, "c")) == "a/b/c"
-    assert t.depth_of(t.root.uid) == 0 and t.depth_of(uid(t, "c")) == 3
+def test_routing_key_and_leaf(tree: Tree) -> None:
+    assert tree.routing_key("cards") == "finance.cards"
+    assert tree.routing_key(ROOT_ID) == ""
+    assert tree.is_leaf("cards") and tree.is_leaf("tech")
+    assert not tree.is_leaf("finance") and not tree.is_leaf(ROOT_ID)
+    assert tree.has_other(ROOT_ID) and tree.has_other("finance")
+    assert not tree.has_other("cards")
 
 
-def test_find_missing_raises():
+def test_empty_tree_is_root_only() -> None:
+    t = Tree.empty()
+    assert list(t.topics) == [ROOT_ID] and t.rev == 0
+    assert t.has_other(ROOT_ID) and not t.is_leaf(ROOT_ID)
+
+
+def test_get_missing_raises(tree: Tree) -> None:
     with pytest.raises(KeyError):
-        load_tree("node: {id: root}").find("nope")
+        tree.get("nope")
 
 
-def test_max_depth_for_nearest_ancestor():
-    t = load_tree(YAML)
-    assert t.max_depth_for(t.root.uid) == 4
-    assert t.max_depth_for(uid(t, "a")) == 2
-    assert t.max_depth_for(uid(t, "c")) == 2
-    assert t.max_depth_for(uid(t, "d")) == 4
-
-
-def test_frozen():
-    t = load_tree(YAML)
-    with pytest.raises(ValidationError):
-        t.root.id = "x"  # type: ignore[misc]
+def test_max_depth_for_nearest_ancestor() -> None:
+    t = make_tree(topic("a", max_depth=5), topic("b", "a"), topic("c"), max_depth=2)
+    assert t.max_depth_for("b") == 5
+    assert t.max_depth_for("c") == 2
+    assert t.max_depth_for(ROOT_ID) == 2

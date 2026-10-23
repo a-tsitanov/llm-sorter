@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-from llm_sorter.domain.classification import Transcript
+from llm_sorter.domain.messages import Transcript
 
 log = logging.getLogger(__name__)
 

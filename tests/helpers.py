@@ -1,26 +1,28 @@
-from llm_sorter.domain.tree import Node, RuleTree
+from typing import Any
+
+from llm_sorter.domain.tree import ROOT_ID, DiscoverSettings, Settings, Topic, Tree
 
 
-def uid(tree: RuleTree, id_: str) -> str:
-    return next(n.uid for n in tree.iter_nodes() if n.id == id_)
+def topic(id_: str, parent: str = ROOT_ID, **kw: Any) -> Topic:
+    kw.setdefault("title", id_.capitalize())
+    kw.setdefault("description", f"Про {id_}")
+    return Topic(id=id_, parent_id=parent, **kw)
 
 
-def _without(node: Node, id_: str) -> Node:
-    return node.model_copy(
-        update={"children": [_without(c, id_) for c in node.children if c.id != id_]}
+def make_tree(*topics: Topic, rev: int = 0, **settings: Any) -> Tree:
+    """settings: max_depth/language/max_reprocess -> Settings, остальное -> DiscoverSettings."""
+    top = {k: v for k, v in settings.items() if k in Settings.model_fields and k != "discover"}
+    disc = {k: v for k, v in settings.items() if k not in top}
+    s = Settings(**top, discover=DiscoverSettings(**disc))
+    root = Topic(id=ROOT_ID, parent_id=None)
+    return Tree(rev=rev, settings=s, topics={ROOT_ID: root, **{t.id: t for t in topics}})
+
+
+def tree3(**settings: Any) -> Tree:
+    """root -> finance -> cards; root -> tech."""
+    return make_tree(
+        topic("finance"),
+        topic("cards", "finance", guard="Пост про банковские карты?"),
+        topic("tech"),
+        **settings,
     )
-
-
-def remove_node(tree: RuleTree, id_: str) -> RuleTree:
-    return tree.model_copy(update={"root": _without(tree.root, id_)})
-
-
-def with_settings(tree: RuleTree, **kw: int) -> RuleTree:
-    """kw: max_depth -> Settings, остальное -> DiscoverSettings."""
-    top = {k: v for k, v in kw.items() if k == "max_depth"}
-    disc = {k: v for k, v in kw.items() if k != "max_depth"}
-    s = tree.settings
-    if disc:
-        s = s.model_copy(update={"discover": s.discover.model_copy(update=disc)})
-    s = s.model_copy(update=top)
-    return tree.model_copy(update={"settings": s})

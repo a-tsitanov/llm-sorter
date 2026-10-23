@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from llm_sorter.domain.classification import Transcript
+from llm_sorter.domain.messages import Transcript
 
 log = logging.getLogger(__name__)
 

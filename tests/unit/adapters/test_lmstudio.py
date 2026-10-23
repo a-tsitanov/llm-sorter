@@ -11,7 +11,6 @@ from llm_sorter.adapters.outbound.lmstudio import (
     LMStudioText,
     make_openai_client,
 )
-from llm_sorter.config import AppConfig
 from llm_sorter.domain.traversal import Candidate
 from llm_sorter.ports.models import InvalidModelOutput
 
@@ -238,9 +237,9 @@ async def test_embed_order(route: Route) -> None:
 
 
 def test_make_openai_client() -> None:
-    client = make_openai_client(AppConfig(lmstudio_url="http://x:1/v1", lmstudio_api_key="k"))
+    client = make_openai_client("http://x:1/v1", "k")
     assert str(client.base_url).startswith("http://x:1/v1")
     assert client.api_key == "k"
-    # ретраи — дело Temporal, таймаут меньше start_to_close activity (120 с)
+    # ретраи с backoff делает обработчик; свой таймаут, чтобы зависший запрос не висел вечно
     assert client.max_retries == 0
     assert client.timeout == 110
