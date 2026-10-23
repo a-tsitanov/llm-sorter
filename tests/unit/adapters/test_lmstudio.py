@@ -141,7 +141,7 @@ async def test_propose_topic_parses(route: Route) -> None:
     }
     route.mock(CHAT, _chat(json.dumps(payload)))
     proposal = await LMStudioText(_client(), "m").propose_topic(
-        ["s1", "s2"], "root/crypto", _cands()[:2], "ru"
+        ["s1", "s2"], "root/crypto", _cands()[:2], "ru", level=2, max_depth=3
     )
     assert proposal.id == "defi_news"
     assert proposal.examples == ["e1", "e2"]
@@ -160,21 +160,45 @@ async def test_propose_topic_drops_blank_examples(route: Route) -> None:
         "guard": "g",
     }
     route.mock(CHAT, _chat(json.dumps(payload)))
-    proposal = await LMStudioText(_client(), "m").propose_topic(["s"], "root", [], "ru")
+    proposal = await LMStudioText(_client(), "m").propose_topic(
+        ["s"], "root", [], "ru", level=1, max_depth=3
+    )
     assert proposal.examples == ["фраза"]
+
+
+@pytest.mark.parametrize(
+    ("level", "max_depth", "hint"),
+    [(1, 3, "широкий домен"), (2, 3, "направление"), (3, 3, "конкретный сценарий")],
+)
+async def test_propose_topic_prompt_has_level(
+    route: Route, level: int, max_depth: int, hint: str
+) -> None:
+    payload = {"id": "x", "title": "t", "description": "d", "examples": ["e"], "guard": "g"}
+    route.mock(CHAT, _chat(json.dumps(payload)))
+    await LMStudioText(_client(), "m").propose_topic(
+        ["s"], "root", [], "ru", level=level, max_depth=max_depth
+    )
+    system = route.last_body["messages"][0]["content"]
+    assert f"уровень {level} из {max_depth}" in system
+    assert hint in system
+    assert "ВСЕ образцы" in system
 
 
 async def test_propose_topic_bad_id_raises(route: Route) -> None:
     payload = {"id": "Bad Id", "title": "t", "description": "d", "examples": [], "guard": "g"}
     route.mock(CHAT, _chat(json.dumps(payload)))
     with pytest.raises(InvalidModelOutput):
-        await LMStudioText(_client(), "m").propose_topic(["s"], "root", [], "ru")
+        await LMStudioText(_client(), "m").propose_topic(
+            ["s"], "root", [], "ru", level=1, max_depth=3
+        )
 
 
 async def test_propose_topic_missing_field_raises(route: Route) -> None:
     route.mock(CHAT, _chat('{"id":"x"}'))
     with pytest.raises(InvalidModelOutput):
-        await LMStudioText(_client(), "m").propose_topic(["s"], "root", [], "ru")
+        await LMStudioText(_client(), "m").propose_topic(
+            ["s"], "root", [], "ru", level=1, max_depth=3
+        )
 
 
 async def test_translate_and_summarize(route: Route) -> None:

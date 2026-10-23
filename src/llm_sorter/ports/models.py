@@ -22,8 +22,16 @@ class TextLLM(Protocol):
     async def summarize(self, text: str, language: str) -> str: ...
 
     async def propose_topic(
-        self, samples: list[str], parent_path: str, siblings: list[Candidate], language: str
-    ) -> TopicProposal: ...
+        self,
+        samples: list[str],
+        parent_path: str,
+        siblings: list[Candidate],
+        language: str,
+        level: int,
+        max_depth: int,
+    ) -> TopicProposal:
+        """level - глубина новой темы (дети root - 1), max_depth - предел глубины ветки."""
+        ...
 
     async def same_topic(self, a: Candidate, b: Candidate) -> bool: ...
 

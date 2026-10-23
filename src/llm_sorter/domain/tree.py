@@ -18,8 +18,10 @@ class DiscoverSettings(_Frozen):
     max_children: int = 12
     dedup_similarity: float = 0.85
     llm_dedup_floor: float = 0.70
-    samples_per_cluster: int = 5
-    sample_chars: int = 2000
+    # до ~120k символов образцов (~40-50k токенов) на одно предложение темы:
+    # модели guard/text нужен контекст >= 64k
+    samples_per_cluster: int = 20
+    sample_chars: int = 6000
 
 
 class Settings(_Frozen):

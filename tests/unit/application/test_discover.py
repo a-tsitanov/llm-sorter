@@ -237,9 +237,10 @@ class SequenceText(FakeText):
         super().__init__()
         self._queue = list(proposals)
 
-    async def propose_topic(self, samples, parent_path, siblings, language):  # type: ignore[no-untyped-def]
+    async def propose_topic(self, samples, parent_path, siblings, language, level, max_depth):  # type: ignore[no-untyped-def]
         self.calls["propose_topic"] += 1
         self.samples = samples
+        self.level = (level, max_depth)
         self.siblings = siblings
         return self._queue.pop(0)
 
@@ -267,7 +268,8 @@ async def test_two_clusters_conflict_with_accepted(
     res = await svc.run(root_uid)
     assert res.created == ["taxes", "taxes_2"]
     assert len(starter.reprocess) == 23
-    assert len(text.samples) == 5  # samples_per_cluster
+    assert 10 <= len(text.samples) <= 12  # весь кластер: он меньше samples_per_cluster (20)
+    assert text.level == (1, 3)  # дети root - уровень 1 при max_depth 3
     assert [c.id for c in text.siblings] == ["finance"]  # без other
 
 
@@ -467,9 +469,11 @@ class AddingText(FakeText):
         self.node_uid = node_uid
         self.next_proposal = proposal("taxes")
 
-    async def propose_topic(self, samples, parent_path, siblings, language):  # type: ignore[no-untyped-def]
+    async def propose_topic(self, samples, parent_path, siblings, language, level, max_depth):  # type: ignore[no-untyped-def]
         await self.material.add(self.node_uid, "late", "other")
-        return await super().propose_topic(samples, parent_path, siblings, language)
+        return await super().propose_topic(
+            samples, parent_path, siblings, language, level, max_depth
+        )
 
 
 async def test_material_added_during_run_stays_new(

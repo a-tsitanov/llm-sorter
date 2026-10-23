@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import numpy as np
 
-from llm_sorter.application.clustering import cluster, cosine, nearest_to_centroid
+from llm_sorter.application.clustering import cluster, cosine, diverse_samples
 from llm_sorter.application.rules import RulesService
 from llm_sorter.domain.discover import (
     TopicProposal,
@@ -150,11 +150,16 @@ class DiscoverService:
             tick()
             samples = [
                 texts[file_ids[i]][: s.sample_chars]
-                for i in nearest_to_centroid(vectors, group, s.samples_per_cluster)
+                for i in diverse_samples(vectors, group, s.samples_per_cluster)
             ]
             try:
                 p = await self._text.propose_topic(
-                    samples, parent_path, siblings, tree.settings.language
+                    samples,
+                    parent_path,
+                    siblings,
+                    tree.settings.language,
+                    level=tree.depth_of(node_uid) + 1,
+                    max_depth=tree.max_depth_for(node_uid),
                 )
             except InvalidModelOutput:
                 self._metrics.model_error("discover")

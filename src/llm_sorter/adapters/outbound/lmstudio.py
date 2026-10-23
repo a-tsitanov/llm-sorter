@@ -93,6 +93,25 @@ def _format_candidate(c: Candidate) -> str:
     return "\n".join(lines)
 
 
+def _level_hint(level: int, max_depth: int) -> str:
+    """Насколько общей должна быть тема на этом уровне дерева."""
+    if level >= max_depth:
+        return (
+            "Это последний уровень: тема - конкретный сценарий внутри родителя "
+            "(например «Рефинансирование ипотеки»)."
+        )
+    if level == 1:
+        return (
+            "Это первый уровень под корнем: тема - широкий домен, внутри которого позже "
+            "появятся подтемы (например «Финансы», «Здоровье», «Путешествия», «Связь»). "
+            "Не называй тему по отдельной услуге или жалобе."
+        )
+    return (
+        "Это промежуточный уровень: тема - направление внутри родителя, шире отдельного "
+        "сценария (например «Кредиты» внутри «Финансы»)."
+    )
+
+
 class LMStudioDecision:
     def __init__(self, client: AsyncOpenAI, model: str) -> None:
         self._client = client
@@ -167,15 +186,27 @@ class LMStudioText:
         return out.strip()
 
     async def propose_topic(
-        self, samples: list[str], parent_path: str, siblings: list[Candidate], language: str
+        self,
+        samples: list[str],
+        parent_path: str,
+        siblings: list[Candidate],
+        language: str,
+        level: int,
+        max_depth: int,
     ) -> TopicProposal:
         system = (
-            "Ты проектируешь дерево тем для классификации разговоров. По образцам предложи одну "
-            "новую тему. id — латиница нижнего регистра, цифры и подчёркивание. guard — "
-            "вопрос yes/no, проверяющий принадлежность к теме. examples — 2-3 короткие типичные "
+            "Ты проектируешь дерево тем для классификации разговоров. По образцам из одного "
+            "кластера предложи одну новую тему. "
+            f"Новая тема встанет на уровень {level} из {max_depth}. "
+            f"{_level_hint(level, max_depth)} "
+            "Тема должна покрывать ВСЕ образцы, а не один из них: если образцы о разном, назови "
+            "то, что их объединяет, а не частный случай. В description перечисли подтемы, "
+            "которые видны в образцах, - по нему другие модели будут относить разговоры к теме. "
+            "id - латиница нижнего регистра, цифры и подчёркивание. guard - вопрос yes/no, "
+            "проверяющий принадлежность разговора к теме. examples - 2-3 короткие типичные "
             "фразы из разговоров этой темы. "
-            f"Title, description, examples и "
-            f"guard пиши на языке: {language}. Не повторяй уже существующие темы. " + _LANG_NOTE
+            f"Title, description, examples и guard пиши на языке: {language}. "
+            "Не повторяй уже существующие темы. " + _LANG_NOTE
         )
         neighbours = "\n".join(_format_candidate(c) for c in siblings) or "(нет)"
         numbered = "\n\n".join(f"[{i}] {s}" for i, s in enumerate(samples, 1))

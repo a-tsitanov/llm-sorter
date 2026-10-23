@@ -318,7 +318,13 @@ class FakeText:
         return "summary: " + text[:50]
 
     async def propose_topic(
-        self, samples: list[str], parent_path: str, siblings: list[Candidate], language: str
+        self,
+        samples: list[str],
+        parent_path: str,
+        siblings: list[Candidate],
+        language: str,
+        level: int,
+        max_depth: int,
     ) -> TopicProposal:
         from llm_sorter.ports.models import InvalidModelOutput
 

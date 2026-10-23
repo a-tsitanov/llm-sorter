@@ -1,5 +1,7 @@
 from pathlib import Path
+from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,3 +31,15 @@ class AppConfig(BaseSettings):
     # лишние ждут в очереди и падают по таймауту
     max_concurrent_activities: int = 8
     sweep_schedule_id: str = "llm-sorter-sweep"
+    # источник для ingest: каталог SOURCE_DIR или папки Telegram
+    ingest_source: Literal["dir", "telegram"] = "dir"
+    tg_api_id: int = 0
+    tg_api_hash: SecretStr = SecretStr("")
+    # Telethon StringSession
+    tg_session: SecretStr = SecretStr("")
+    # названия папок Telegram через запятую, как в клиенте
+    tg_folders: str = ""
+    tg_state_file: Path = Path("./data/tg_state.json")
+    # сколько последних сообщений брать из чата при первом опросе
+    tg_backfill: int = 20
+    tg_min_len: int = 80

@@ -10,3 +10,4 @@ data/
 !.env.example
 dist/
 *.egg-info/
+.superpowers/

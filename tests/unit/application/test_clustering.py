@@ -1,7 +1,12 @@
 import numpy as np
 import pytest
 
-from llm_sorter.application.clustering import cluster, cosine, nearest_to_centroid
+from llm_sorter.application.clustering import (
+    cluster,
+    cosine,
+    diverse_samples,
+    nearest_to_centroid,
+)
 
 
 def test_cluster_two_groups():
@@ -79,3 +84,27 @@ def test_cluster_near_duplicates_stay_one_group():
     base[5] = 1.0
     vectors = np.array([base + 0.001 * i * np.eye(1024)[i % 7] for i in range(20)])
     assert [len(g) for g in cluster(vectors, min_cluster_size=10)] == [20]
+
+
+def test_diverse_samples_covers_subgroups():
+    # кластер из двух подгрупп: центральные образцы из большей, но меньшая тоже представлена
+    rng = np.random.default_rng(6)
+    big = rng.normal([1, 0.2, 0], 0.01, (15, 3))
+    small = rng.normal([1, -0.2, 0], 0.01, (5, 3))
+    vectors = np.vstack([big, small])
+    picked = diverse_samples(vectors, list(range(20)), k=4)
+    assert len(picked) == len(set(picked)) == 4
+    assert picked[0] < 15  # первый - центральный
+    assert any(i >= 15 for i in picked)
+
+
+def test_diverse_samples_small_cluster_returns_all():
+    vectors = np.eye(3)
+    assert sorted(diverse_samples(vectors, [0, 2], k=5)) == [0, 2]
+
+
+def test_diverse_samples_deterministic():
+    rng = np.random.default_rng(7)
+    vectors = rng.normal(0, 1, (30, 16))
+    idxs = list(range(30))
+    assert diverse_samples(vectors, idxs, k=8) == diverse_samples(vectors.copy(), idxs, k=8)

@@ -78,6 +78,24 @@ def nearest_to_centroid(vectors: NDArray[np.floating], idxs: list[int], k: int) 
     return [idxs[int(i)] for i in order[:k]]
 
 
+def diverse_samples(vectors: NDArray[np.floating], idxs: list[int], k: int) -> list[int]:
+    """k образцов кластера для LLM: четверть ближайших к центроиду, остальные -
+    жадно самые далёкие от уже выбранных (farthest-point), чтобы модель видела
+    весь разброс кластера, а не одну его плотную середину."""
+    if len(idxs) <= k:
+        return nearest_to_centroid(vectors, idxs, len(idxs))
+    picked = nearest_to_centroid(vectors, idxs, max(1, k // 4))
+    x = _normalize(vectors[idxs])
+    pos = {i: n for n, i in enumerate(idxs)}
+    # минимальная косинусная дистанция каждой точки до выбранных
+    min_dist = np.min(1.0 - x @ x[[pos[i] for i in picked]].T, axis=1)
+    while len(picked) < k:
+        n = int(np.argmax(min_dist))  # argmax берёт первый максимум: детерминированно
+        picked.append(idxs[n])
+        min_dist = np.minimum(min_dist, 1.0 - x @ x[n])
+    return picked
+
+
 def cosine(
     a: Sequence[float] | NDArray[np.floating], b: Sequence[float] | NDArray[np.floating]
 ) -> float:

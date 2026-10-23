@@ -12,12 +12,14 @@ import yaml
 from llm_sorter.adapters.inbound.poller import run_poller
 from llm_sorter.adapters.inbound.rabbit import RabbitPublisher, run_consumer
 from llm_sorter.adapters.inbound.stub_source import LocalDirSource
+from llm_sorter.adapters.inbound.telegram_source import TelegramSource, TelethonGateway
 from llm_sorter.adapters.outbound.null_starter import NullStarter
 from llm_sorter.application.rules import PublishResult, RulesService
 from llm_sorter.bootstrap import build_app
 from llm_sorter.config import AppConfig
 from llm_sorter.domain.loader import load_tree
 from llm_sorter.domain.tree import RuleTree
+from llm_sorter.ports.io import TranscriptSource
 from llm_sorter.ports.storage import VersionConflict
 
 app = typer.Typer(help="llm-sorter: классификация транскриптов", no_args_is_help=True)
@@ -149,21 +151,69 @@ def worker() -> None:
     _serve(lambda stop: run_worker(AppConfig(), stop=stop))
 
 
+def _tg_folders(cfg: AppConfig) -> list[str]:
+    return [f.strip() for f in cfg.tg_folders.split(",") if f.strip()]
+
+
+async def _tg_gateway(cfg: AppConfig) -> TelethonGateway:
+    return await TelethonGateway.connect(
+        cfg.tg_api_id, cfg.tg_api_hash.get_secret_value(), cfg.tg_session.get_secret_value()
+    )
+
+
 @app.command("ingest")
 def ingest() -> None:
-    """Поллер каталога SOURCE_DIR -> RabbitMQ."""
+    """Поллер источника -> RabbitMQ. INGEST_SOURCE: dir - каталог SOURCE_DIR,
+    telegram - чаты папок TG_FOLDERS."""
     cfg = AppConfig()
+    if cfg.ingest_source == "telegram" and not _tg_folders(cfg):
+        raise _fail("TG_FOLDERS is empty - list folders with `llm-sorter tg-folders`")
 
     async def main(stop: asyncio.Event) -> None:
-        cfg.source_dir.mkdir(parents=True, exist_ok=True)
-        source = LocalDirSource(cfg.source_dir, cfg.source_dir / ".seen.json")
+        gateway: TelethonGateway | None = None
+        source: TranscriptSource
+        if cfg.ingest_source == "telegram":
+            gateway = await _tg_gateway(cfg)
+            folders = _tg_folders(cfg)
+            # падаем на старте, а не на каждом тике, если папки нет
+            chats = await gateway.folder_chats(folders)
+            logging.getLogger(__name__).info(
+                "telegram: %d chats in %s: %s", len(chats), folders, [c.title for c in chats]
+            )
+            source = TelegramSource(
+                gateway,
+                folders,
+                cfg.tg_state_file,
+                backfill=cfg.tg_backfill,
+                min_len=cfg.tg_min_len,
+            )
+        else:
+            cfg.source_dir.mkdir(parents=True, exist_ok=True)
+            source = LocalDirSource(cfg.source_dir, cfg.source_dir / ".seen.json")
         publisher = RabbitPublisher(cfg.rabbit_url, cfg.queue_name)
         try:
             await run_poller(source, publisher, cfg.poll_interval_s, stop)
         finally:
             await publisher.close()
+            if gateway is not None:
+                await gateway.close()
 
     _serve(main)
+
+
+@app.command("tg-folders")
+def tg_folders() -> None:
+    """Папки Telegram аккаунта TG_SESSION (значения для TG_FOLDERS)."""
+    cfg = AppConfig()
+
+    async def go() -> list[str]:
+        gateway = await _tg_gateway(cfg)
+        try:
+            return await gateway.folder_titles()
+        finally:
+            await gateway.close()
+
+    typer.echo("\n".join(asyncio.run(go())))
 
 
 @app.command("consume")

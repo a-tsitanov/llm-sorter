@@ -2,7 +2,7 @@ import ast
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "llm_sorter"
-LIBS = {"temporalio", "sqlalchemy", "httpx", "openai", "aio_pika"}
+LIBS = {"temporalio", "sqlalchemy", "httpx", "openai", "aio_pika", "telethon"}
 FORBIDDEN = {
     "domain": {"application", "adapters", "orchestration", "ports"},
     "application": {"adapters", "orchestration"},

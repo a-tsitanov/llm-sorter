@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from pydantic import SecretStr
 
 from llm_sorter.config import AppConfig
 
@@ -24,6 +25,14 @@ DEFAULTS = {
     "sweep_interval_s": 600,
     "max_concurrent_activities": 8,
     "sweep_schedule_id": "llm-sorter-sweep",
+    "ingest_source": "dir",
+    "tg_api_id": 0,
+    "tg_api_hash": SecretStr(""),
+    "tg_session": SecretStr(""),
+    "tg_folders": "",
+    "tg_state_file": Path("./data/tg_state.json"),
+    "tg_backfill": 20,
+    "tg_min_len": 80,
 }
 
 
