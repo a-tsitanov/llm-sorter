@@ -8,16 +8,24 @@ from typing import Annotated
 
 import typer
 
-from llm_sorter.adapters.inbound.telegram_source import TelethonGateway
+from llm_sorter.adapters.inbound.poller import run_poller
+from llm_sorter.adapters.inbound.processor import run_processor
+from llm_sorter.adapters.inbound.stub_source import LocalDirSource
+from llm_sorter.adapters.inbound.telegram_source import TelegramSource, TelethonGateway
+from llm_sorter.adapters.outbound.rabbit import InboxPublisher, Names
 from llm_sorter.adapters.outbound.sqlite_store import SqliteTopicStore
 from llm_sorter.application.topics import TopicsService
+from llm_sorter.bootstrap import build_processor
 from llm_sorter.config import AppConfig
 from llm_sorter.domain.tree import ROOT_ID
 from llm_sorter.domain.validation import TreeValidationError
+from llm_sorter.ports.io import TranscriptSource
 
 app = typer.Typer(help="llm-sorter: классификация сообщений", no_args_is_help=True)
 topics_app = typer.Typer(help="Дерево тем (SQLite)", no_args_is_help=True)
 app.add_typer(topics_app, name="topics")
+feed_app = typer.Typer(help="Фидеры: источник -> очередь inbox", no_args_is_help=True)
+app.add_typer(feed_app, name="feed")
 
 
 def _fail(msg: str) -> typer.Exit:
@@ -155,3 +163,81 @@ def tg_folders() -> None:
             await gateway.close()
 
     typer.echo("\n".join(asyncio.run(go())))
+
+
+async def _feed(cfg: AppConfig, source: TranscriptSource, stop: asyncio.Event) -> None:
+    publisher = InboxPublisher(cfg.rabbit_url, Names.from_config(cfg))
+    try:
+        await run_poller(source, publisher, cfg.poll_interval_s, stop)
+    finally:
+        await publisher.close()
+
+
+@feed_app.command("dir")
+def feed_dir() -> None:
+    """Файлы *.txt / *.json из SOURCE_DIR -> inbox."""
+    cfg = AppConfig()
+
+    async def main(stop: asyncio.Event) -> None:
+        cfg.source_dir.mkdir(parents=True, exist_ok=True)
+        await _feed(cfg, LocalDirSource(cfg.source_dir, cfg.source_dir / ".seen.json"), stop)
+
+    _serve(main)
+
+
+@feed_app.command("tg")
+def feed_tg() -> None:
+    """Посты чатов папок TG_FOLDERS -> inbox."""
+    cfg = AppConfig()
+    folders = _tg_folders(cfg)
+    if not folders:
+        raise _fail("TG_FOLDERS is empty - list folders with `llm-sorter tg-folders`")
+
+    async def main(stop: asyncio.Event) -> None:
+        gateway = await _tg_gateway(cfg)
+        try:
+            # падаем на старте, а не на каждом тике, если папки нет
+            chats = await gateway.folder_chats(folders)
+            logging.getLogger(__name__).info(
+                "telegram: %d chats in %s: %s", len(chats), folders, [c.title for c in chats]
+            )
+            source = TelegramSource(
+                gateway,
+                folders,
+                cfg.tg_state_file,
+                backfill=cfg.tg_backfill,
+                min_len=cfg.tg_min_len,
+            )
+            await _feed(cfg, source, stop)
+        finally:
+            await gateway.close()
+
+    _serve(main)
+
+
+@app.command("process")
+def process(
+    concurrency: Annotated[int | None, typer.Option(help="сообщений одновременно")] = None,
+    metrics_port: Annotated[int | None, typer.Option(help="0 - без метрик")] = None,
+) -> None:
+    """Обработчик inbox: спуск по дереву, гейт, публикация результата."""
+    cfg = AppConfig()
+
+    async def main(stop: asyncio.Event) -> None:
+        port = cfg.metrics_port if metrics_port is None else metrics_port
+        service, cache, store = await build_processor(cfg, port)
+        try:
+            await run_processor(
+                cfg.rabbit_url,
+                Names.from_config(cfg),
+                concurrency or cfg.process_concurrency,
+                service,
+                cache,
+                stop,
+                cfg.other_max_age,
+                cfg.other_max_bytes,
+            )
+        finally:
+            await store.close()
+
+    _serve(main)

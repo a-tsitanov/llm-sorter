@@ -58,3 +58,16 @@ def test_import_twice_needs_replace(env: Path) -> None:
     runner.invoke(app, ["topics", "import", str(env)])
     assert runner.invoke(app, ["topics", "import", str(env)]).exit_code == 1
     assert runner.invoke(app, ["topics", "import", str(env), "--replace"]).exit_code == 0
+
+
+def test_help_lists_runtime_commands() -> None:
+    out = runner.invoke(app, ["--help"]).output
+    assert "process" in out and "feed" in out
+    feed = runner.invoke(app, ["feed", "--help"]).output
+    assert "dir" in feed and "tg" in feed
+
+
+def test_feed_tg_requires_folders(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TG_FOLDERS", "")
+    r = runner.invoke(app, ["feed", "tg"])
+    assert r.exit_code == 1 and "TG_FOLDERS" in r.output

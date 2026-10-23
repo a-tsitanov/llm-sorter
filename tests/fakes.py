@@ -5,6 +5,7 @@ from collections import Counter
 from typing import Any
 
 from llm_sorter.domain.discover import TopicProposal
+from llm_sorter.domain.messages import Classified, Considered, OtherItem, Resolved, Transcript
 from llm_sorter.domain.traversal import Candidate
 
 
@@ -116,3 +117,29 @@ class FakeEmbedder:
     async def embed(self, texts: list[str]) -> list[list[float]]:
         self.calls += 1
         return [self.mapping.get(t) or self._fallback(t) for t in texts]
+
+
+class FakeBus:
+    """Bus в памяти; events - общий порядок вызовов (для проверки publish-before-ack)."""
+
+    def __init__(self, events: list[str] | None = None) -> None:
+        self.events = events if events is not None else []
+        self.classified_msgs: list[Classified] = []
+        self.records: list[OtherItem | Resolved | Considered] = []
+        self.reinjected: list[tuple[Transcript, int]] = []
+
+    @property
+    def others(self) -> list[OtherItem]:
+        return [r for r in self.records if isinstance(r, OtherItem)]
+
+    async def classified(self, msg: Classified) -> None:
+        self.events.append(f"classified:{msg.topic.path}")
+        self.classified_msgs.append(msg)
+
+    async def other(self, record: OtherItem | Resolved | Considered) -> None:
+        self.events.append(f"other:{record.kind}")
+        self.records.append(record)
+
+    async def reinject(self, t: Transcript, reprocess: int) -> None:
+        self.events.append(f"reinject:{t.id}")
+        self.reinjected.append((t, reprocess))
