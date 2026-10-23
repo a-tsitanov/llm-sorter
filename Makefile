@@ -1,4 +1,4 @@
-.PHONY: help install lint fmt typecheck test test-int up down migrate worker ingest consume
+.PHONY: help install lint fmt typecheck test test-int up down
 help: ## Показать цели
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-10s %s\n", $$1, $$2}'
 install: ## Установить зависимости
@@ -17,11 +17,3 @@ up: ## Поднять инфраструктуру
 	docker compose up -d
 down: ## Остановить инфраструктуру
 	docker compose down
-migrate: ## Применить миграции alembic
-	uv run alembic upgrade head
-worker: ## Temporal worker
-	uv run llm-sorter worker
-ingest: ## Поллер входящих файлов
-	uv run llm-sorter ingest
-consume: ## Consumer RabbitMQ
-	uv run llm-sorter consume
