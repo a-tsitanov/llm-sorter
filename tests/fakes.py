@@ -78,10 +78,17 @@ class FakeGuard(_Queue):
 
 
 class FakeText:
-    def __init__(self) -> None:
-        self.next_proposal: TopicProposal | None = None
-        self.same: bool = False
+    """propose_topic отдаёт предложения по очереди (исключение бросается), последнее повторяется."""
+
+    def __init__(
+        self, proposals: list[TopicProposal | BaseException] | None = None, same: bool = False
+    ) -> None:
+        self.proposals = list(proposals or [])
+        self.same = same
         self.calls: Counter[str] = Counter()
+        self.samples: list[list[str]] = []
+        self.levels: list[tuple[int, int]] = []
+        self.siblings: list[list[str]] = []
 
     async def propose_topic(
         self,
@@ -95,9 +102,15 @@ class FakeText:
         from llm_sorter.ports.models import InvalidModelOutput
 
         self.calls["propose_topic"] += 1
-        if self.next_proposal is None:
-            raise InvalidModelOutput("FakeText.next_proposal is not set")
-        return self.next_proposal
+        self.samples.append(samples)
+        self.levels.append((level, max_depth))
+        self.siblings.append([c.id for c in siblings])
+        if not self.proposals:
+            raise InvalidModelOutput("FakeText.proposals is empty")
+        value = self.proposals.pop(0) if len(self.proposals) > 1 else self.proposals[0]
+        if isinstance(value, BaseException):
+            raise value
+        return value
 
     async def same_topic(self, a: Candidate, b: Candidate) -> bool:
         self.calls["same_topic"] += 1
