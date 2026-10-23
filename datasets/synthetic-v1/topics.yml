@@ -1,0 +1,68 @@
+# Seed-дерево для synthetic-v1: `uv run llm-sorter topics import datasets/synthetic-v1/topics.yml`
+topics:
+  - id: finance
+    parent: root
+    title: Финансы
+    description: Банковские продукты и криптовалюты
+  - id: cards
+    parent: finance
+    title: Банковские карты
+    description: Выпуск, блокировка, лимиты, комиссии и кэшбэк по банковским картам
+    guard: "Разговор о банковской карте клиента или её условиях?"
+  - id: loans
+    parent: finance
+    title: Кредиты
+    description: Кредиты, ипотека, рефинансирование, платежи и просрочки
+    guard: "Разговор о кредите, ипотеке или платежах по ним?"
+  - id: crypto_trading
+    parent: finance
+    title: Торговля криптовалютой
+    description: Биржи, ордера, комиссии и сделки с криптовалютой
+    guard: "Разговор о сделках или торговле криптовалютой на бирже?"
+  - id: crypto_wallets
+    parent: finance
+    title: Криптокошельки
+    description: Кошельки, ключи, переводы и доступ к криптовалюте
+    guard: "Разговор о криптокошельке, ключах или переводе криптовалюты?"
+  - id: health
+    parent: root
+    title: Здоровье
+    description: Медицинские услуги и страхование
+  - id: dental
+    parent: health
+    title: Стоматология
+    description: Приём у стоматолога, лечение зубов, план лечения
+    guard: "Разговор о стоматологическом лечении или приёме у стоматолога?"
+  - id: insurance
+    parent: health
+    title: Медицинская страховка
+    description: Полисы ДМС и ОМС, покрытие, выплаты
+    guard: "Разговор о медицинской страховке, полисе или выплате по нему?"
+  - id: tech
+    parent: root
+    title: Связь и техника
+    description: Домашний интернет и мобильная связь
+  - id: internet
+    parent: tech
+    title: Домашний интернет
+    description: Подключение, скорость, обрывы и тарифы домашнего интернета
+    guard: "Разговор о домашнем интернете, его подключении или неполадках?"
+  - id: mobile
+    parent: tech
+    title: Мобильная связь
+    description: Тарифы, SIM-карты, роуминг и баланс мобильного оператора
+    guard: "Разговор о мобильной связи, тарифе или SIM-карте?"
+  - id: travel
+    parent: root
+    title: Путешествия
+    description: Авиабилеты и гостиницы
+  - id: flights
+    parent: travel
+    title: Авиабилеты
+    description: Покупка, обмен и возврат билетов, рейсы и багаж
+    guard: "Разговор об авиабилете, рейсе или багаже?"
+  - id: hotels
+    parent: travel
+    title: Гостиницы
+    description: Бронирование, заселение и отмена брони в отеле
+    guard: "Разговор о бронировании или проживании в гостинице?"
