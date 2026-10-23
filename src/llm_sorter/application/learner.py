@@ -13,7 +13,7 @@ from typing import Protocol
 from llm_sorter.application.discover import DiscoverResult
 from llm_sorter.domain.changes import AddTopic
 from llm_sorter.domain.discover import should_discover, slots_left
-from llm_sorter.domain.messages import Considered, OtherItem, Resolved
+from llm_sorter.domain.messages import AnyRecord, Considered, Marker, OtherItem, Resolved
 from llm_sorter.domain.tree import Tree
 from llm_sorter.domain.validation import TreeValidationError
 from llm_sorter.ports.bus import Bus
@@ -23,6 +23,7 @@ from llm_sorter.ports.store import TopicStore
 log = logging.getLogger(__name__)
 
 OFFSET_KEY = "other_offset"
+REFRESH_KEY = "last_refresh_at"
 
 
 class Proposer(Protocol):
@@ -52,6 +53,8 @@ class Learner:
         self._now = now
         self._buffers: dict[str, dict[str, Pending]] = {}  # узел -> id -> копия
         self._node_of: dict[str, str] = {}  # id -> узел, где лежит последняя копия
+        self._last_offset = -1  # robust-переподключение отдаёт stream заново - не применять
+        self._markers: set[str] = set()
 
     # --- состояние из stream ---
 
@@ -78,8 +81,16 @@ class Learner:
             if p is not None and p.item.at <= at:
                 p.considered = True
 
-    def feed(self, offset: int, record: OtherItem | Resolved | Considered) -> None:
-        if isinstance(record, Resolved):
+    def has_seen(self, token: str) -> bool:
+        return token in self._markers
+
+    def feed(self, offset: int, record: AnyRecord) -> None:
+        if offset <= self._last_offset:
+            return
+        self._last_offset = offset
+        if isinstance(record, Marker):
+            self._markers.add(record.token)
+        elif isinstance(record, Resolved):
             self._resolve(record.ids, record.at)
         elif isinstance(record, Considered):
             self._consider(record.node, record.ids, record.at)
@@ -122,7 +133,13 @@ class Learner:
             new_count = sum(not p.considered for p in buf)
             if not should_discover(tree, node, new_count):
                 continue
-            tree = await self._run_node(tree, node, buf)
+            try:
+                tree = await self._run_node(tree, node, buf)
+            except Exception:
+                # узел, на котором discover падает (контекст модели, сбой), не держит остальные
+                log.exception("discover at %s failed", node)
+                self._metrics.model_error("discover")
+                continue
             done.append(node)
         return done
 
@@ -149,7 +166,7 @@ class Learner:
                 )
                 moved = [buf[i] for i in members]
         for p in moved:
-            await self._bus.reinject(p.item.transcript(), p.item.reprocess + 1)
+            await self._bus.reinject(p.item.transcript(), p.item.reprocess + 1, tree.rev)
         if moved:
             ids = [p.item.id for p in moved]
             await self._bus.other(Resolved(ids=ids, at=started))
@@ -165,16 +182,28 @@ class Learner:
 
     async def refresh_old(self, max_age: timedelta) -> int:
         """Переиздаёт в конец stream копии старше max_age, чтобы их не удалил ретеншн.
-        `at` копии сохраняется (по нему работают Resolved/Considered), признак considered
-        переносится свежей записью Considered."""
-        cutoff = self._now() - max_age
+        Копия получает at=now (иначе переиздавалась бы каждый цикл); признак considered
+        переносится следующей за ней записью Considered с at не раньше копии."""
+        now = self._now()
+        cutoff = now - max_age
         count = 0
         for node in list(self._buffers):
             old = [p for p in self.buffer(node) if p.item.at < cutoff]
             for p in old:
-                await self._bus.other(p.item)
+                await self._bus.other(p.item.model_copy(update={"at": now}))
             considered = [p.item.id for p in old if p.considered]
             if considered:
-                await self._bus.other(Considered(node=node, ids=considered, at=self._now()))
+                await self._bus.other(Considered(node=node, ids=considered, at=now))
             count += len(old)
+        return count
+
+    async def refresh_if_due(self, every: timedelta, max_age: timedelta) -> int | None:
+        """refresh_old не чаще every; время последнего хранится в SQLite и переживает
+        перезапуски (иначе при деплоях чаще раза в сутки переиздание не случалось бы)."""
+        last = await self._store.get_state(REFRESH_KEY)
+        now = self._now()
+        if last is not None and now - datetime.fromisoformat(last) < every:
+            return None
+        count = await self.refresh_old(max_age)
+        await self._store.set_state(REFRESH_KEY, now.isoformat())
         return count

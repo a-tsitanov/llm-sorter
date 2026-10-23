@@ -124,3 +124,24 @@ async def test_state_roundtrip(open_store: Opener, tmp_path: Path) -> None:
     await s.set_state("other_offset", "42")
     await s.set_state("other_offset", "43")
     assert await (await open_store()).get_state("other_offset") == "43"
+
+
+async def test_load_tree_rev_never_newer_than_topics(open_store: Opener) -> None:
+    """Запись, закоммиченная посреди load_tree, не даёт дерево с новым rev и старыми темами."""
+    writer = await open_store()
+
+    class Racy(SqliteTopicStore):
+        raced = False
+
+        async def tree_rev(self) -> int:
+            # коммит другого процесса ровно в момент чтения ревизии
+            if not self.raced:
+                self.raced = True
+                await writer.apply([AddTopic(topic=topic("late"))], "cli")
+            return await super().tree_rev()
+
+    reader = await open_store()
+    racy = Racy(reader._db)
+    t = await racy.load_tree()
+    # либо старый rev (кеш перечитает позже), либо новый вместе с новой темой
+    assert t.rev == 0 or "late" in t.topics

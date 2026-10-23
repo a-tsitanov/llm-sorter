@@ -16,6 +16,7 @@ from llm_sorter.adapters.outbound.rabbit import (
     RabbitBus,
     declare_topology,
     reprocess_count,
+    tree_rev_header,
 )
 from llm_sorter.application.process import ProcessService
 from llm_sorter.domain.messages import Transcript
@@ -54,7 +55,7 @@ class Delivery(Protocol):
 
 
 class TreeSource(Protocol):
-    async def get(self) -> Tree: ...
+    async def get(self, min_rev: int = 0) -> Tree: ...
 
 
 class TreeCache:
@@ -73,9 +74,11 @@ class TreeCache:
         self._checked = 0.0
         self._lock = asyncio.Lock()
 
-    async def get(self) -> Tree:
+    async def get(self, min_rev: int = 0) -> Tree:
+        """min_rev: сообщение перегнано с этой ревизии - старее кеш использовать нельзя."""
         now = self._clock()
-        if self._tree is not None and now - self._checked < self._refresh_s:
+        fresh = self._tree is not None and now - self._checked < self._refresh_s
+        if fresh and self._tree is not None and self._tree.rev >= min_rev:
             return self._tree
         async with self._lock:  # одна перезагрузка на все корутины
             if self._tree is None or await self._store.tree_rev() != self._tree.rev:
@@ -85,9 +88,14 @@ class TreeCache:
 
 
 async def _process_and_publish(
-    t: Transcript, reprocess: int, service: ProcessService, cache: TreeSource, bus: Bus
+    t: Transcript,
+    reprocess: int,
+    min_rev: int,
+    service: ProcessService,
+    cache: TreeSource,
+    bus: Bus,
 ) -> None:
-    out = await service.process(t, await cache.get(), reprocess)
+    out = await service.process(t, await cache.get(min_rev), reprocess)
     if out.classified is not None:
         await bus.classified(out.classified)
     for other in out.others:
@@ -109,10 +117,11 @@ async def handle_delivery(
         await msg.reject(requeue=False)
         return
     reprocess = reprocess_count(msg.headers)
+    min_rev = tree_rev_header(msg.headers)
     delay = BACKOFF_START_S
     while True:
         try:
-            await _process_and_publish(t, reprocess, service, cache, bus)
+            await _process_and_publish(t, reprocess, min_rev, service, cache, bus)
         except asyncio.CancelledError:
             raise
         except Exception:

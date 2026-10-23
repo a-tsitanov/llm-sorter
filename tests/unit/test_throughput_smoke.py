@@ -47,7 +47,7 @@ class Static:
     def __init__(self, tree: Tree) -> None:
         self.tree = tree
 
-    async def get(self) -> Tree:
+    async def get(self, min_rev: int = 0) -> Tree:
         return self.tree
 
 

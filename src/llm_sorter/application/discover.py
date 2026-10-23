@@ -17,6 +17,8 @@ from llm_sorter.ports.metrics import Metrics
 from llm_sorter.ports.models import Embedder, InvalidModelOutput, TextLLM
 
 EMBED_BATCH = 16
+# буфер узла кластеризуется заново на каждом discover: эмбеддинги текстов кешируются
+EMBED_CACHE_SIZE = 100_000
 # лист делится, только если получилось столько подтем: одна подтема ничего не даёт
 MIN_LEAF_SPLIT = 2
 
@@ -56,11 +58,16 @@ class DiscoverService:
         self._embedder = embedder
         self._text = text_llm
         self._metrics = metrics
+        self._cache: dict[str, list[float]] = {}  # порядок вставки = порядок вытеснения
 
     async def _embed(self, texts: list[str]) -> list[list[float]]:
-        out: list[list[float]] = []
-        for i in range(0, len(texts), EMBED_BATCH):
-            out.extend(await self._embedder.embed(texts[i : i + EMBED_BATCH]))
+        missing = list(dict.fromkeys(t for t in texts if t not in self._cache))
+        for i in range(0, len(missing), EMBED_BATCH):
+            batch = missing[i : i + EMBED_BATCH]
+            self._cache.update(zip(batch, await self._embedder.embed(batch), strict=True))
+        out = [self._cache[t] for t in texts]
+        while len(self._cache) > EMBED_CACHE_SIZE:
+            del self._cache[next(iter(self._cache))]
         return out
 
     async def propose(self, tree: Tree, node_id: str, texts: list[str]) -> DiscoverResult:

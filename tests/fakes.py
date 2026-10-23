@@ -5,7 +5,7 @@ from collections import Counter
 from typing import Any
 
 from llm_sorter.domain.discover import TopicProposal
-from llm_sorter.domain.messages import Classified, Considered, OtherItem, Resolved, Transcript
+from llm_sorter.domain.messages import AnyRecord, Classified, OtherItem, Transcript
 from llm_sorter.domain.traversal import Candidate
 
 
@@ -40,6 +40,9 @@ class RecordingMetrics:
 
     def tree_rev(self, rev: int) -> None:
         self.counts["tree_rev"] = rev
+
+    def other_lost(self, count: int) -> None:
+        self.counts["other_lost"] += count
 
 
 Answer = str | bool | BaseException
@@ -138,8 +141,9 @@ class FakeBus:
     def __init__(self, events: list[str] | None = None) -> None:
         self.events = events if events is not None else []
         self.classified_msgs: list[Classified] = []
-        self.records: list[OtherItem | Resolved | Considered] = []
+        self.records: list[AnyRecord] = []
         self.reinjected: list[tuple[Transcript, int]] = []
+        self.reinjected_revs: list[int] = []
 
     @property
     def others(self) -> list[OtherItem]:
@@ -149,10 +153,11 @@ class FakeBus:
         self.events.append(f"classified:{msg.topic.path}")
         self.classified_msgs.append(msg)
 
-    async def other(self, record: OtherItem | Resolved | Considered) -> None:
+    async def other(self, record: AnyRecord) -> None:
         self.events.append(f"other:{record.kind}")
         self.records.append(record)
 
-    async def reinject(self, t: Transcript, reprocess: int) -> None:
+    async def reinject(self, t: Transcript, reprocess: int, tree_rev: int = 0) -> None:
         self.events.append(f"reinject:{t.id}")
         self.reinjected.append((t, reprocess))
+        self.reinjected_revs.append(tree_rev)

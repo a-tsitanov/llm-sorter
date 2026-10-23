@@ -89,6 +89,9 @@ class SqliteTopicStore:
         return Settings.model_validate_json(row[0]) if row else Settings()
 
     async def load_tree(self) -> Tree:
+        # ревизия раньше тем: если запись закоммитят между чтениями, дерево получит
+        # старый rev с новыми темами и кеш обработчика перечитает его, а не наоборот
+        rev = await self.tree_rev()
         async with self._db.execute(
             "SELECT id, parent_id, title, description, examples, guard, origin, max_depth "
             "FROM topics WHERE archived_at IS NULL ORDER BY seq"
@@ -107,7 +110,7 @@ class SqliteTopicStore:
             )
             for r in rows
         }
-        return Tree(rev=await self.tree_rev(), settings=await self._settings(), topics=topics)
+        return Tree(rev=rev, settings=await self._settings(), topics=topics)
 
     async def _log(self, actor: Actor, op: str, topic_id: str | None, details: Any) -> None:
         await self._db.execute(

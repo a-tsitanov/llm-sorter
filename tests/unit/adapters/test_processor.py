@@ -44,7 +44,7 @@ class StaticCache:
     def __init__(self, tree: Tree) -> None:
         self.tree = tree
 
-    async def get(self) -> Tree:
+    async def get(self, min_rev: int = 0) -> Tree:
         return self.tree
 
 
@@ -193,3 +193,33 @@ async def test_stop_interrupts_long_backoff() -> None:
     await handle_delivery(m, svc(dec), StaticCache(tree3()), bus, stop)
     assert time.perf_counter() - started < 1.0
     assert (m.acked, m.nacked, m.requeue) == (0, 1, True)
+
+
+async def test_tree_cache_reloads_for_newer_min_rev(store: SqliteTopicStore) -> None:
+    cache = TreeCache(store, refresh_s=3600.0, clock=lambda: 0.0)
+    assert (await cache.get()).rev == 0
+    await store.apply([AddTopic(topic=topic("finance"))], "cli")
+    assert (await cache.get()).rev == 0  # кеш свежий по времени
+    assert "finance" in (await cache.get(min_rev=1)).topics  # перегон по новому дереву
+
+
+async def test_reinjected_message_uses_header_rev() -> None:
+    class Spy(StaticCache):
+        asked: list[int] = []
+
+        async def get(self, min_rev: int = 0) -> Tree:
+            self.asked.append(min_rev)
+            return self.tree
+
+    m, bus, cache = FakeMessage(body(), {"x-tree-rev": 7}), FakeBus(), Spy(tree3())
+    await handle_delivery(m, svc(FakeDecision(["other"])), cache, bus, asyncio.Event())
+    assert cache.asked == [7]
+
+
+@pytest.mark.parametrize(
+    "headers,rev", [(None, 0), ({"x-tree-rev": "x"}, 0), ({"x-tree-rev": 4}, 4)]
+)
+def test_tree_rev_header(headers: dict[str, Any] | None, rev: int) -> None:
+    from llm_sorter.adapters.outbound.rabbit import tree_rev_header
+
+    assert tree_rev_header(headers) == rev

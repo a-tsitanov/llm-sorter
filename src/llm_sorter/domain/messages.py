@@ -85,15 +85,24 @@ class Considered(_Frozen):
     at: datetime
 
 
-StreamRecord = Annotated[OtherItem | Resolved | Considered, Field(discriminator="kind")]
-_RECORD: TypeAdapter[OtherItem | Resolved | Considered] = TypeAdapter(StreamRecord)
+class Marker(_Frozen):
+    """Метка дообучения: прочитав свою метку, оно знает, что догнало конец stream."""
+
+    kind: Literal["marker"] = "marker"
+    token: str
+    at: datetime
 
 
-def dump_record(r: OtherItem | Resolved | Considered) -> bytes:
+AnyRecord = OtherItem | Resolved | Considered | Marker
+StreamRecord = Annotated[AnyRecord, Field(discriminator="kind")]
+_RECORD: TypeAdapter[AnyRecord] = TypeAdapter(StreamRecord)
+
+
+def dump_record(r: AnyRecord) -> bytes:
     return r.model_dump_json().encode()
 
 
-def load_record(b: bytes) -> OtherItem | Resolved | Considered:
+def load_record(b: bytes) -> AnyRecord:
     """ValueError на мусоре (pydantic ValidationError - подкласс ValueError)."""
     try:
         return _RECORD.validate_json(b)

@@ -49,7 +49,7 @@ def route() -> Route:
 
 def _client() -> AsyncOpenAI:
     http = httpx2.AsyncClient(transport=httpx2.MockTransport(_route.handler))
-    return AsyncOpenAI(base_url="http://test/v1", api_key="x", http_client=http)
+    return AsyncOpenAI(base_url="http://test/v1", api_key="x", http_client=http, max_retries=0)
 
 
 def _chat(content: str) -> httpx2.Response:
@@ -231,3 +231,33 @@ def test_make_openai_client() -> None:
     # ретраи с backoff делает обработчик; свой таймаут, чтобы зависший запрос не висел вечно
     assert client.max_retries == 0
     assert client.timeout == 110
+
+
+def _error(status: int) -> httpx2.Response:
+    return httpx2.Response(status, json={"error": {"message": "boom", "type": "x"}})
+
+
+@pytest.mark.parametrize("status", [400, 404, 413, 422])
+async def test_deterministic_4xx_is_invalid_output(route: Route, status: int) -> None:
+    """Запрос, который всегда будет отвергнут, не должен ретраиться вечно как сбой связи."""
+    route.mock(CHAT, _error(status))
+    with pytest.raises(InvalidModelOutput, match=str(status)):
+        await LLMDecision(_client(), "m").decide("t", _cands())
+
+
+@pytest.mark.parametrize("status", [408, 429, 500, 503])
+async def test_transient_errors_propagate(route: Route, status: int) -> None:
+    from openai import APIStatusError
+
+    route.mock(CHAT, _error(status))
+    with pytest.raises(APIStatusError):
+        await LLMGuard(_client(), "m").check("t", "q?")
+
+
+async def test_long_text_truncated_in_prompt(route: Route) -> None:
+    from llm_sorter.adapters.outbound.llm import MAX_TEXT_CHARS
+
+    route.mock(CHAT, _chat('{"answer":"yes"}'))
+    await LLMGuard(_client(), "m").check("я" * (MAX_TEXT_CHARS * 3), "q?")
+    user = route.last_body["messages"][1]["content"]
+    assert user.count("я") == MAX_TEXT_CHARS

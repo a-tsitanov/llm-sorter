@@ -8,16 +8,11 @@ import aio_pika
 from aio_pika.abc import AbstractChannel, AbstractExchange, AbstractRobustConnection
 
 from llm_sorter.config import AppConfig
-from llm_sorter.domain.messages import (
-    Classified,
-    Considered,
-    OtherItem,
-    Resolved,
-    Transcript,
-    dump_record,
-)
+from llm_sorter.domain.messages import AnyRecord, Classified, Transcript, dump_record
 
 REPROCESS_HEADER = "x-reprocess"
+# ревизия дерева, с которой сообщение перегнано: обработчик не классифицирует его по старому
+TREE_REV_HEADER = "x-tree-rev"
 
 
 @dataclass(frozen=True)
@@ -43,7 +38,15 @@ class Names:
 
 def reprocess_count(headers: Mapping[str, Any] | None) -> int:
     """Номер перегона из заголовка; нет / мусор / отрицательное -> 0."""
-    raw = (headers or {}).get(REPROCESS_HEADER)
+    return _int_header(headers, REPROCESS_HEADER)
+
+
+def tree_rev_header(headers: Mapping[str, Any] | None) -> int:
+    return _int_header(headers, TREE_REV_HEADER)
+
+
+def _int_header(headers: Mapping[str, Any] | None, name: str) -> int:
+    raw = (headers or {}).get(name)
     if isinstance(raw, bool):
         return 0
     if isinstance(raw, int):
@@ -103,14 +106,17 @@ class RabbitBus:
     async def classified(self, msg: Classified) -> None:
         await self._ex.publish(_message(msg.model_dump_json().encode()), routing_key=msg.topic.path)
 
-    async def other(self, record: OtherItem | Resolved | Considered) -> None:
+    async def other(self, record: AnyRecord) -> None:
         await self._ch.default_exchange.publish(
             _message(dump_record(record)), routing_key=self._n.other
         )
 
-    async def reinject(self, t: Transcript, reprocess: int) -> None:
+    async def reinject(self, t: Transcript, reprocess: int, tree_rev: int = 0) -> None:
         await self._ch.default_exchange.publish(
-            _message(t.model_dump_json().encode(), {REPROCESS_HEADER: reprocess}),
+            _message(
+                t.model_dump_json().encode(),
+                {REPROCESS_HEADER: reprocess, TREE_REV_HEADER: tree_rev},
+            ),
             routing_key=self._n.inbox,
         )
 

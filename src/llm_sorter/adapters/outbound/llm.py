@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import APIStatusError, AsyncOpenAI
 from pydantic import ValidationError
 
 from llm_sorter.domain.discover import TopicProposal
@@ -14,6 +14,11 @@ from llm_sorter.ports.models import InvalidModelOutput
 _ID_RE = re.compile(r"^[a-z0-9_]+$")
 _MAX_EXAMPLES = 3
 _GENERATION_TEMPERATURE = 0.2
+# статусы, которые не исправятся повтором (длина контекста, схема, нет модели)
+_REJECTED = {400, 404, 413, 422}
+# столько символов сообщения уходит в decide/guard: длинный текст не должен
+# упираться в контекст модели, а начало разговора несёт тему
+MAX_TEXT_CHARS = 12000
 _LANG_NOTE = "Транскрипт может быть на любом языке; оценивай смысл независимо от языка."
 
 
@@ -49,12 +54,18 @@ async def _chat(
     kwargs: dict[str, Any] = {}
     if response_format is not None:
         kwargs["response_format"] = response_format
-    resp = await client.chat.completions.create(
-        model=model,
-        temperature=temperature,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        **kwargs,
-    )
+    try:
+        resp = await client.chat.completions.create(
+            model=model,
+            temperature=temperature,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            **kwargs,
+        )
+    except APIStatusError as e:
+        if e.status_code in _REJECTED:
+            # повтор даст тот же отказ: это невалидный выход, а не сбой связи
+            raise InvalidModelOutput(f"model request rejected: {e.status_code} {e.message}") from e
+        raise
     return resp.choices[0].message.content or ""
 
 
@@ -121,7 +132,7 @@ class LLMDecision:
             "если ни одна не подходит — other. Ответь JSON с полем choice. " + _LANG_NOTE
         )
         user = "Темы:\n" + "\n".join(_format_candidate(c) for c in candidates)
-        user += f"\n\nРазговор:\n{text}"
+        user += f"\n\nРазговор:\n{text[:MAX_TEXT_CHARS]}"
         data = await _chat_json(
             self._client, self._model, system, user, 0, _enum_schema("choice", "choice", ids)
         )
@@ -138,7 +149,7 @@ class LLMGuard:
             "Ты проверяешь разговор. Ответь на вопрос строго yes или no в JSON с полем answer. "
             + _LANG_NOTE
         )
-        user = f"Вопрос: {question}\n\nРазговор:\n{text}"
+        user = f"Вопрос: {question}\n\nРазговор:\n{text[:MAX_TEXT_CHARS]}"
         data = await _chat_json(
             self._client,
             self._model,

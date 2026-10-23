@@ -242,3 +242,32 @@ async def test_empty_texts_ignored(embedder: FakeEmbedder, metrics: RecordingMet
     res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
     [a] = res.accepted
     assert sorted(a.members) == list(range(12)) and sorted(res.considered) == [12, 13]
+
+
+async def test_embeddings_cached_between_runs(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    class Counting(FakeEmbedder):
+        texts: list[str] = []
+
+        async def embed(self, texts: list[str]) -> list[list[float]]:
+            self.texts.extend(texts)
+            return await super().embed(texts)
+
+    e = Counting(dict(embedder.mapping), dim=DIM)
+    texts = cluster(e, "tax", 5)
+    s = svc(e, FakeText([InvalidModelOutput("x")]), metrics)
+    await s.propose(tree(), ROOT_ID, texts)
+    before = len(e.texts)
+    await s.propose(tree(), ROOT_ID, texts)  # тот же буфер на следующем discover
+    assert len(e.texts) == before and before >= 12
+
+
+async def test_embed_more_texts_than_cache(
+    monkeypatch: pytest.MonkeyPatch, embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    import llm_sorter.application.discover as d
+
+    monkeypatch.setattr(d, "EMBED_CACHE_SIZE", 3)
+    s = svc(embedder, FakeText([]), metrics)
+    assert len(await s._embed([f"t{i}" for i in range(10)])) == 10

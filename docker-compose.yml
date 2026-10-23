@@ -1,6 +1,11 @@
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
+    # inbox, архив и stream other - состояние системы: данные переживают `make down`;
+    # hostname фиксирован, по нему RabbitMQ называет каталог данных узла
+    hostname: llm-sorter-rabbit
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
     ports: ["${RABBIT_PORT:-5672}:5672", "${RABBIT_MGMT_PORT:-15672}:15672"]
 
   prometheus:
@@ -19,3 +24,5 @@ services:
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
     ports: ["3000:3000"]
 
+volumes:
+  rabbitdata:

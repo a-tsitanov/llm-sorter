@@ -32,3 +32,9 @@ def test_all_methods_emit() -> None:
     assert g("llm_sorter_discover_blocked", {"node": "a"}) == 1
     assert g("llm_sorter_discover_blocked", {"node": "b"}) == 0
     assert g("llm_sorter_tree_rev") == 4
+
+
+def test_other_lost_counter() -> None:
+    reg = CollectorRegistry()
+    PrometheusMetrics(reg).other_lost(15)
+    assert reg.get_sample_value("llm_sorter_other_lost_total") == 15

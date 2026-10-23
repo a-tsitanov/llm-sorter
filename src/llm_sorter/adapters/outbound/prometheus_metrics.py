@@ -36,6 +36,9 @@ class PrometheusMetrics:
             registry=r,
         )
         self._rev = Gauge(p + "tree_rev", "Ревизия дерева тем", registry=r)
+        self._lost = Counter(
+            p + "other_lost", "Записи stream other, удалённые ретеншном до разбора", registry=r
+        )
 
     def processed(self, outcome: Outcome) -> None:
         self._processed.labels(outcome).inc()
@@ -63,3 +66,6 @@ class PrometheusMetrics:
 
     def tree_rev(self, rev: int) -> None:
         self._rev.set(rev)
+
+    def other_lost(self, count: int) -> None:
+        self._lost.inc(count)

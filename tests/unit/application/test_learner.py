@@ -105,6 +105,7 @@ async def test_threshold_triggers_discover_and_reinjects_members(store: SqliteTo
     tree = await store.load_tree()
     assert "taxes" in tree.topics and tree.get("taxes").origin == "discovered"
     assert [(t.id, r) for t, r in bus.reinjected] == [(f"m{i}", 1) for i in range(6)]
+    assert set(bus.reinjected_revs) == {tree.rev}  # обработчик перечитает дерево до этой ревизии
     resolved = [r for r in bus.records if isinstance(r, Resolved)]
     considered = [r for r in bus.records if isinstance(r, Considered)]
     assert resolved[0].ids == [f"m{i}" for i in range(6)]
@@ -253,7 +254,7 @@ async def test_refresh_old_republishes(store: SqliteTopicStore) -> None:
     assert await lr.refresh_old(timedelta(minutes=30)) == 1
     assert [r.kind for r in bus.records] == ["item", "considered"]
     copy = bus.records[0]
-    assert isinstance(copy, OtherItem) and copy.id == "old" and copy.at == T0
+    assert isinstance(copy, OtherItem) and copy.id == "old" and copy.at == clock.t
     # копия читается из stream позже и заменяет старую, признак considered сохраняется
     lr.feed(3, copy)
     lr.feed(4, bus.records[1])
@@ -262,3 +263,62 @@ async def test_refresh_old_republishes(store: SqliteTopicStore) -> None:
         ("old", 3, True),
     ]
     assert lr.watermark() == 1
+
+
+async def test_replayed_offsets_are_ignored(store: SqliteTopicStore) -> None:
+    """Переподключение robust-очереди отдаёт историю заново: состояние не должно меняться."""
+    lr = learner(store, FakeDiscover())
+    records: list[OtherItem | Resolved | Considered] = [
+        item("a"),
+        item("b"),
+        Considered(node=ROOT_ID, ids=["a"], at=T0),
+        Resolved(ids=["b"], at=T0),
+    ]
+    for i, r in enumerate(records):
+        lr.feed(i, r)
+    before = [(p.item.id, p.considered) for p in lr.buffer(ROOT_ID)]
+    for i, r in enumerate(records[:2]):  # повтор с начала, оборван на середине
+        lr.feed(i, r)
+    assert [(p.item.id, p.considered) for p in lr.buffer(ROOT_ID)] == before == [("a", True)]
+
+
+def test_marker_marks_caught_up(store: SqliteTopicStore) -> None:
+    from llm_sorter.domain.messages import Marker
+
+    lr = learner(store, FakeDiscover())
+    assert not lr.has_seen("t1")
+    lr.feed(0, Marker(token="t1", at=T0))
+    assert lr.has_seen("t1") and lr.watermark() is None
+
+
+async def test_failing_node_does_not_block_others(store: SqliteTopicStore) -> None:
+    await store.apply(
+        [AddTopic(topic=topic("finance")), AddTopic(topic=topic("cards", "finance"))], "cli"
+    )
+
+    class Flaky(FakeDiscover):
+        async def propose(self, tree: Tree, node_id: str, texts: list[str]) -> DiscoverResult:
+            if node_id == ROOT_ID:
+                raise RuntimeError("context length exceeded")
+            return await super().propose(tree, node_id, texts)
+
+    m = RecordingMetrics()
+    lr = learner(store, Flaky(), metrics=m)
+    fill(lr, 10, node=ROOT_ID, prefix="r")
+    fill(lr, 10, node="finance", start=10, prefix="f")
+    assert await lr.run_due() == ["finance"]
+    assert m.counts["model_error:discover"] == 1
+
+
+async def test_refresh_schedule_survives_restart(store: SqliteTopicStore) -> None:
+    clock, bus = Clock(), FakeBus()
+    lr = learner(store, FakeDiscover(), bus, clock=clock)
+    lr.feed(0, item("old", at=T0))
+    every, age = timedelta(hours=24), timedelta(minutes=30)
+    assert await lr.refresh_if_due(every, age) == 1  # ни разу не было - сразу
+    assert await lr.refresh_if_due(every, age) is None
+    restarted = learner(store, FakeDiscover(), bus, clock=clock)  # перезапуск процесса
+    restarted.feed(0, item("old", at=T0))
+    assert await restarted.refresh_if_due(every, age) is None
+    clock.t += timedelta(hours=25)
+    assert await restarted.refresh_if_due(every, age) == 1

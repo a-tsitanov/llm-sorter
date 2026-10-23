@@ -9,3 +9,10 @@ groups:
         annotations:
           summary: "Discover заблокирован: {{ $labels.node }}"
           description: "Узел {{ $labels.node }} достиг max_children, а буфер other не пуст. Нужна ручная правка дерева."
+      - alert: OtherLost
+        expr: increase(llm_sorter_other_lost_total[1h]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ретеншн stream other удалил неразобранные сообщения"
+          description: "Дообучение не успело прочитать записи stream: увеличить OTHER_MAX_BYTES или OTHER_MAX_AGE (у нового stream)."
