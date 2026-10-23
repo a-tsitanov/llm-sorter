@@ -1,0 +1,180 @@
+"""Дообучение: буферы по узлам из stream `other`, discover по порогу, перегон сообщений.
+
+Состояние сообщений живёт только в stream: Resolved/Considered - служебные записи,
+которые дообучение само туда пишет. После перезапуска буферы восстанавливаются
+чтением stream с сохранённой позиции (watermark)."""
+
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Protocol
+
+from llm_sorter.application.discover import DiscoverResult
+from llm_sorter.domain.changes import AddTopic
+from llm_sorter.domain.discover import should_discover, slots_left
+from llm_sorter.domain.messages import Considered, OtherItem, Resolved
+from llm_sorter.domain.tree import Tree
+from llm_sorter.domain.validation import TreeValidationError
+from llm_sorter.ports.bus import Bus
+from llm_sorter.ports.metrics import Metrics
+from llm_sorter.ports.store import TopicStore
+
+log = logging.getLogger(__name__)
+
+OFFSET_KEY = "other_offset"
+
+
+class Proposer(Protocol):
+    async def propose(self, tree: Tree, node_id: str, texts: list[str]) -> DiscoverResult: ...
+
+
+@dataclass
+class Pending:
+    offset: int
+    item: OtherItem
+    considered: bool = False
+
+
+class Learner:
+    def __init__(
+        self,
+        store: TopicStore,
+        discover: Proposer,
+        bus: Bus,
+        metrics: Metrics,
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> None:
+        self._store = store
+        self._discover = discover
+        self._bus = bus
+        self._metrics = metrics
+        self._now = now
+        self._buffers: dict[str, dict[str, Pending]] = {}  # узел -> id -> копия
+        self._node_of: dict[str, str] = {}  # id -> узел, где лежит последняя копия
+
+    # --- состояние из stream ---
+
+    def _drop(self, id: str) -> Pending | None:
+        node = self._node_of.pop(id, None)
+        if node is None:
+            return None
+        p = self._buffers[node].pop(id)
+        if not self._buffers[node]:
+            del self._buffers[node]
+        return p
+
+    def _resolve(self, ids: list[str], at: datetime) -> None:
+        # копия новее записи - уже следующий круг этого сообщения, её не трогаем
+        for id in ids:
+            node = self._node_of.get(id)
+            if node is not None and self._buffers[node][id].item.at <= at:
+                self._drop(id)
+
+    def _consider(self, node: str, ids: list[str], at: datetime) -> None:
+        buf = self._buffers.get(node, {})
+        for id in ids:
+            p = buf.get(id)
+            if p is not None and p.item.at <= at:
+                p.considered = True
+
+    def feed(self, offset: int, record: OtherItem | Resolved | Considered) -> None:
+        if isinstance(record, Resolved):
+            self._resolve(record.ids, record.at)
+        elif isinstance(record, Considered):
+            self._consider(record.node, record.ids, record.at)
+        else:
+            self._drop(record.id)  # последняя копия побеждает
+            if record.final:
+                return
+            self._buffers.setdefault(record.node, {})[record.id] = Pending(offset, record)
+            self._node_of[record.id] = record.node
+
+    def buffer(self, node: str) -> list[Pending]:
+        return sorted(self._buffers.get(node, {}).values(), key=lambda p: p.offset)
+
+    def watermark(self) -> int | None:
+        offsets = [p.offset for buf in self._buffers.values() for p in buf.values()]
+        return min(offsets) if offsets else None
+
+    async def save_offset(self, next_offset: int) -> None:
+        """Позиция для перезапуска: самая старая ждущая копия, иначе всё прочитанное."""
+        w = self.watermark()
+        await self._store.set_state(OFFSET_KEY, str(next_offset if w is None else w))
+
+    # --- discover ---
+
+    async def run_due(self) -> list[str]:
+        tree = await self._store.load_tree()
+        self._metrics.tree_rev(tree.rev)
+        done: list[str] = []
+        for node in list(self._buffers):
+            if node not in tree.topics:
+                continue  # узел архивирован; материал ждёт ручной правки дерева
+            buf = self.buffer(node)
+            if slots_left(tree, node) <= 0:
+                self._metrics.discover_blocked(node, True)
+                log.warning(
+                    "discover blocked at %s: max_children reached, %d waiting", node, len(buf)
+                )
+                continue
+            self._metrics.discover_blocked(node, False)
+            new_count = sum(not p.considered for p in buf)
+            if not should_discover(tree, node, new_count):
+                continue
+            tree = await self._run_node(tree, node, buf)
+            done.append(node)
+        return done
+
+    async def _run_node(self, tree: Tree, node: str, buf: list[Pending]) -> Tree:
+        started = self._now()
+        was_leaf = tree.is_leaf(node)
+        res = await self._discover.propose(tree, node, [p.item.text for p in buf])
+        moved: list[Pending] = []
+        if res.accepted:
+            try:
+                tree = await self._store.apply(
+                    [AddTopic(topic=a.topic) for a in res.accepted], "learner"
+                )
+            except TreeValidationError as e:
+                # дерево поменяли параллельно (CLI): прогон считается неудачным
+                log.warning("discover at %s not applied: %s", node, e)
+                res = DiscoverResult([], list(range(len(buf))), res.rejected)
+            else:
+                # проросший лист: всё его содержимое спускается в новые подтемы
+                members = (
+                    range(len(buf))
+                    if was_leaf
+                    else sorted({i for a in res.accepted for i in a.members})
+                )
+                moved = [buf[i] for i in members]
+        for p in moved:
+            await self._bus.reinject(p.item.transcript(), p.item.reprocess + 1)
+        if moved:
+            ids = [p.item.id for p in moved]
+            await self._bus.other(Resolved(ids=ids, at=started))
+            self._resolve(ids, started)
+        moved_ids = {p.item.id for p in moved}
+        rest = [buf[i].item.id for i in res.considered if buf[i].item.id not in moved_ids]
+        if rest:
+            await self._bus.other(Considered(node=node, ids=rest, at=started))
+            self._consider(node, rest, started)
+        self._metrics.discover_run(node, len(res.accepted), res.rejected)
+        self._metrics.buffer_size(node, len(self.buffer(node)))
+        return tree
+
+    async def refresh_old(self, max_age: timedelta) -> int:
+        """Переиздаёт в конец stream копии старше max_age, чтобы их не удалил ретеншн.
+        `at` копии сохраняется (по нему работают Resolved/Considered), признак considered
+        переносится свежей записью Considered."""
+        cutoff = self._now() - max_age
+        count = 0
+        for node in list(self._buffers):
+            old = [p for p in self.buffer(node) if p.item.at < cutoff]
+            for p in old:
+                await self._bus.other(p.item)
+            considered = [p.item.id for p in old if p.considered]
+            if considered:
+                await self._bus.other(Considered(node=node, ids=considered, at=self._now()))
+            count += len(old)
+        return count
