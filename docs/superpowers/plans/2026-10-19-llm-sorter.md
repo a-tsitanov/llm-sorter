@@ -1,3 +1,5 @@
+> **Заменён:** [план v2](2026-10-23-llm-sorter-v2.md) (2026-10-23).
+
 # llm-sorter Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

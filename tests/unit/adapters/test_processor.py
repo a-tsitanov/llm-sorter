@@ -53,7 +53,7 @@ class Sleeps:
         self.delays: list[float] = []
         self._stop, self._after = stop, stop_after
 
-    async def __call__(self, delay: float) -> None:
+    async def __call__(self, stop: asyncio.Event, delay: float) -> None:
         self.delays.append(delay)
         if self._stop is not None and len(self.delays) == self._after:
             self._stop.set()
@@ -98,7 +98,7 @@ async def test_llm_down_waits_then_processes_once() -> None:
     dec = FakeDecision([ConnectionError(), ConnectionError(), "finance", "cards"])
     sleeps = Sleeps()
     await handle_delivery(
-        m, svc(dec, FakeGuard([True])), StaticCache(tree3()), bus, asyncio.Event(), sleep=sleeps
+        m, svc(dec, FakeGuard([True])), StaticCache(tree3()), bus, asyncio.Event(), wait=sleeps
     )
     assert sleeps.delays == [1.0, 2.0]
     assert (m.acked, m.rejected, m.nacked) == (1, 0, 0)
@@ -110,7 +110,7 @@ async def test_backoff_is_capped() -> None:
     m, bus = FakeMessage(body()), FakeBus()
     dec = FakeDecision([ConnectionError()] * 12 + ["other"])
     sleeps = Sleeps()
-    await handle_delivery(m, svc(dec), StaticCache(tree3()), bus, asyncio.Event(), sleep=sleeps)
+    await handle_delivery(m, svc(dec), StaticCache(tree3()), bus, asyncio.Event(), wait=sleeps)
     assert max(sleeps.delays) == 300.0 and sleeps.delays[:3] == [1.0, 2.0, 4.0]
 
 
@@ -131,7 +131,7 @@ async def test_publish_failure_retried_without_duplicate_ack() -> None:
         StaticCache(tree3()),
         bus,
         asyncio.Event(),
-        sleep=Sleeps(),
+        wait=Sleeps(),
     )
     assert m.acked == 1 and len(bus.others) == 1
 
@@ -141,7 +141,7 @@ async def test_stop_during_outage_requeues() -> None:
     m, bus = FakeMessage(body()), FakeBus()
     dec = FakeDecision([ConnectionError()] * 10)
     await handle_delivery(
-        m, svc(dec), StaticCache(tree3()), bus, stop, sleep=Sleeps(stop, stop_after=2)
+        m, svc(dec), StaticCache(tree3()), bus, stop, wait=Sleeps(stop, stop_after=2)
     )
     assert (m.acked, m.nacked, m.requeue) == (0, 1, True)
 
@@ -178,3 +178,18 @@ async def test_tree_cache_reloads_on_rev_change(store: SqliteTopicStore) -> None
     assert "finance" not in (await cache.get()).topics  # ещё не время проверять rev
     clock[0] = 1.5
     assert "finance" in (await cache.get()).topics
+
+
+async def test_stop_interrupts_long_backoff() -> None:
+    import time
+
+    stop = asyncio.Event()
+    m, bus = FakeMessage(body()), FakeBus()
+    dec = FakeDecision([ConnectionError()] * 100)
+    loop = asyncio.get_running_loop()
+    loop.call_later(0.2, stop.set)
+    started = time.perf_counter()
+    # настоящая пауза: 1 + 2 + 4 ... секунд, stop через 0.2 с должен её прервать
+    await handle_delivery(m, svc(dec), StaticCache(tree3()), bus, stop)
+    assert time.perf_counter() - started < 1.0
+    assert (m.acked, m.nacked, m.requeue) == (0, 1, True)

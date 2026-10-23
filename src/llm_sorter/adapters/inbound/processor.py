@@ -28,7 +28,13 @@ log = logging.getLogger(__name__)
 BACKOFF_START_S = 1.0
 BACKOFF_MAX_S = 300.0
 
-Sleep = Callable[[float], Awaitable[None]]
+Wait = Callable[[asyncio.Event, float], Awaitable[None]]
+
+
+async def wait_or_stop(stop: asyncio.Event, seconds: float) -> None:
+    """Пауза, которую прерывает stop: остановка во время сбоя не ждёт backoff."""
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(stop.wait(), seconds)
 
 
 class Delivery(Protocol):
@@ -94,7 +100,7 @@ async def handle_delivery(
     cache: TreeSource,
     bus: Bus,
     stop: asyncio.Event,
-    sleep: Sleep = asyncio.sleep,
+    wait: Wait = wait_or_stop,
 ) -> None:
     try:
         t = Transcript.model_validate_json(msg.body)
@@ -112,7 +118,7 @@ async def handle_delivery(
         except Exception:
             # сбой LLM / Rabbit / SQLite: ждём, а не отправляем в other или DLQ
             log.exception("processing %s failed, retry in %.0fs", t.id, delay)
-            await sleep(delay)
+            await wait(stop, delay)
             delay = min(delay * 2, BACKOFF_MAX_S)
             if stop.is_set():
                 await msg.nack(requeue=True)

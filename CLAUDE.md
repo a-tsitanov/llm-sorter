@@ -2,51 +2,41 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-llm-sorter classifies transcripts through a self-growing topic tree (hexagonal architecture, Temporal + RabbitMQ + Postgres + LM Studio). Design: [spec](docs/superpowers/specs/2026-10-19-llm-sorter-design.md) (Russian), implementation [plan](docs/superpowers/plans/2026-10-19-llm-sorter.md). Comments and docs are in Russian, identifiers in English.
+llm-sorter classifies messages through a self-growing topic tree: three processes (feeders -> processors -> learner) connected only by RabbitMQ and SQLite, hexagonal layout. Design: [v2 spec](docs/superpowers/specs/2026-10-23-llm-sorter-v2-design.md) (Russian), [plan](docs/superpowers/plans/2026-10-23-llm-sorter-v2.md). The v1 spec/plan (Temporal + Postgres) are kept for history only. Comments and docs are in Russian, identifiers in English.
 
 ## Commands
 
 Python `>=3.12,<3.14`, `uv` only (never bare `pip`). `make help` lists everything.
 
 - `make install` / `make lint` / `make fmt` / `make typecheck` / `make test` (unit, `-m "not integration"`)
-- Single test: `uv run pytest tests/unit/application/test_classify.py::test_final_is_immutable -v`
-- `make up` / `make down` - docker compose (Postgres+pgvector, RabbitMQ, Temporal + UI, Prometheus, Grafana)
-- `make migrate` - alembic; `make worker` / `make ingest` / `make consume` - the three long-running processes
-- Integration (`make test-int`, `-m integration`): needs `make up` only; the fixture creates and migrates the separate `sorter_test` DB itself (`TEST_DATABASE_URL` optional, default `.../sorter_test`; it refuses any DB not ending in `_test` before TRUNCATE). Models are scripted. If RabbitMQ host ports are remapped (`RABBIT_PORT`/`RABBIT_MGMT_PORT`), set `RABBIT_URL`, e.g. `RABBIT_URL=amqp://guest:guest@localhost:5673/ uv run pytest -m integration`.
-- Metrics: worker serves Prometheus on `METRICS_PORT` (9100); compose Prometheus scrapes `host.docker.internal:9100`; Grafana datasource is provisioned from `deploy/grafana/`.
-- Alerts: `deploy/prometheus/rules.yml` (loaded via `rule_files`): `TopicMoveAttempt` (any increase of `llm_sorter_topic_move_attempts_total` in 5m) and `DiscoverBlocked` (`llm_sorter_discover_blocked{path} == 1` for 30m: node at `max_children` with a non-empty `other` buffer - needs a manual tree edit). Check with `promtool check rules`.
+- Single test: `uv run pytest tests/unit/application/test_process.py::test_gate_failure_goes_to_parent_other -v`
+- `make up` / `make down` - docker compose: RabbitMQ 3.13 (streams), Prometheus, Grafana. Nothing else is needed besides an OpenAI-compatible model server (`LLM_URL`).
+- Processes: `make feed-dir` / `make feed-tg` (feeders), `make process` (any number of processors; second one on the same host needs `--metrics-port 0`), `make learn` (exactly one; enforced by a flock next to the SQLite file).
+- Integration (`make test-int`, `-m integration`): needs `make up` only; queue names get a random prefix per test and are deleted after. If RabbitMQ host ports are remapped (`RABBIT_PORT`/`RABBIT_MGMT_PORT`), `RABBIT_URL` must point to them (the repo `.env` does).
+- Metrics: processor serves Prometheus on `METRICS_PORT` (9100), learner on `LEARNER_METRICS_PORT` (9101); compose Prometheus scrapes both on `host.docker.internal`. Alert `DiscoverBlocked` (`deploy/prometheus/rules.yml`): `llm_sorter_discover_blocked{node} == 1` for 30m - node at `max_children` with a non-empty buffer, needs a manual tree edit.
 
 ## Architecture
 
-Layers under `src/llm_sorter/`: `domain` (pure models/rules) <- `ports` (Protocols) <- `application` (services) <- `orchestration` (Temporal workflows/activities/worker) and `adapters` (inbound: poller/rabbit/cli; outbound: lmstudio, postgres, fs, prometheus...). `bootstrap.build_app` is the only place that wires adapters to services; tests inject fakes (`tests/fakes.py`) via its `overrides`.
+Layers under `src/llm_sorter/`: `domain` (pure models/rules) <- `ports` (Protocols) <- `application` (services) <- `adapters` (inbound: cli, feeders, processor, learner_runner; outbound: llm, sqlite_store, rabbit, metrics). `bootstrap.py` is the only place that wires adapters to services; tests inject fakes (`tests/fakes.py`) via `overrides`. Import rule, enforced by `tests/unit/test_layers.py`: `domain` imports nothing from other layers nor httpx/openai/aio_pika/aiosqlite/telethon/prometheus_client; `application` imports only `domain` and `ports`.
 
-Import rule, enforced by `tests/unit/test_layers.py`: `domain` imports nothing from other layers nor temporalio/sqlalchemy/httpx/openai/aio_pika; `application` imports only `domain` and `ports`.
-
-Data flow: `ingest` (poller; `INGEST_SOURCE=dir` - `LocalDirSource` stub, `telegram` - `TelegramSource`: chats of Telegram folders `TG_FOLDERS`, per-chat cursor of the last acked message id in `TG_STATE_FILE`) -> RabbitMQ -> `consume` stores the transcript and starts `ClassifyWorkflow` -> decide/guard walk the tree -> `finalize` (saves the classification, adds `other`/leaf material) -> actions (save/translate/annotate/notify) -> when a node's `other` buffer reaches `buffer_threshold`, `DiscoverWorkflow` clusters it and adds topics -> new version -> files in `other` are reprocessed (`reprocess:{file_id}:{version}`). `SweepWorkflow` (Temporal schedule) picks up due nodes and then runs `reconcile_reprocess`: any file in `X/other` classified at a version where X had fewer live children than now gets `reprocess:{file_id}:{active_version}` (catches reprocess that never started because publish succeeded but the process died before `start_reprocess`). A reprocess first checks `still_in_other`; if another reprocess already moved the file (or it is final) it returns `skipped` without LLM calls and without a `topic_move_attempt`.
+Data flow:
+- **Feeders** (`feed dir` = `LocalDirSource`, `feed tg` = `TelegramSource`: chats of Telegram folders `TG_FOLDERS`, per-chat cursor in `TG_STATE_FILE`) publish `{"id","text","metadata"}` to queue `llm-sorter.inbox` (DLQ `llm-sorter.inbox.dlq`).
+- **Processor** (`ProcessService` + `adapters/inbound/processor.py`): tree from SQLite cached in memory (`TreeCache`, re-checks `tree_rev` every `TREE_REFRESH_S`); descends from `root` with the decide model until a leaf, then the leaf's gate (`guard`). Outcomes: gate passed -> topic exchange `llm-sorter.classified`, routing key = topic path by ids (`finance.cards`), always also bound to archive queue `llm-sorter.classified.all` (`#`); no matching child at node X -> stream `llm-sorter.other` with `node=X`; gate failed at leaf L -> `other` of L's **parent**; a passed leaf below `max_depth` also writes a `reason=leaf` copy (leaf growth material).
+- **Learner** (`Learner` + `learner_runner.py`): reads the stream from the saved offset, keeps per-node buffers, and when a node has `buffer_threshold` *new* (not yet considered) messages runs `DiscoverService.propose` (cluster, LLM proposals, dedup, guard check), writes topics to SQLite, re-publishes the clustered messages to inbox with `x-reprocess` + 1. A leaf splits only into >= 2 subtopics; then its whole buffer is re-published.
 
 ## Invariants
 
-- Final is final: a `classified`/`guard_failed` file is immutable. Overwrite attempt -> `FinalClassificationExists`, `llm_sorter_topic_move_attempts_total` +1, no actions. The exception is a replay of the same `run_id` (Temporal retry), which re-applies side effects idempotently.
-- `ClassifyWorkflow` pins the tree version at start and uses it to the end; publishing a new version never affects running workflows.
-- `other` is never written to YAML; it exists implicitly on `root` and on every node with live children. A leaf has no `other`.
-- Workflow ids and reuse policies (`temporal_starter.py`): classify `file_id` and reprocess `reprocess:{file_id}:{version}` use `ALLOW_DUPLICATE_FAILED_ONLY` - a duplicate delivery while running or after success raises `WorkflowAlreadyStartedError` (swallowed, consumer acks), but a failed run can be restarted by redelivery and replays the stored decision via `run_id`. Discover `discover:{node_uid}` uses `ALLOW_DUPLICATE` - rejected only while a run is in progress.
-- Retry semantics - outage waits, bad output falls back. `ClassifyService.step`/`guard_check` call the model up to 3 times on `InvalidModelOutput`, then raise it; Temporal does not retry it (`non_retryable_error_types`), and the workflow falls back (decide -> `other`, guard -> `guard_failed`) and records `model_error`. Any other activity error (LM Studio down, Postgres down, timeout) is retried forever with backoff (1s x2, max 5 min), so files wait instead of being misfiled. The OpenAI client has `max_retries=0`, `timeout=110` (below the 120s activity timeout). Actions also retry forever except `ValueError` (non-retryable, fails the workflow).
-- `save` action paths with `..` or absolute are rejected (`ValueError`), nothing is written outside `STORAGE_ROOT`. `Transcript.id` must match `^[A-Za-z0-9._-]+$` without `..`; `translate.to` must look like a language tag (`en`, `pt-BR`).
-
-## RabbitMQ consumer
-
-- Invalid body (bad JSON / schema / id) -> `reject(requeue=False)` -> dead-lettered to `<queue>.dlq`.
-- Side-effect failure (Postgres/Temporal down) -> after a 1s pause the message is republished to the end of the queue with header `x-retries` +1 and the original is acked; at `x-retries >= 5` it is rejected to `<queue>.dlq`. If republish itself fails -> `nack(requeue=True)`.
-- The queue is declared with `x-dead-letter-exchange=""`, `x-dead-letter-routing-key=<queue>.dlq` by both publisher and consumer. Upgrading an existing deployment: an old `transcripts` queue without these arguments makes the declare fail with `PRECONDITION_FAILED` - drain and delete it once (`rabbitmqctl delete_queue transcripts` or the management UI) before starting the new version.
+- Ack after publish: the processor acks inbox only after the result (and every `other` copy) is confirmed by the broker. Delivery is at-least-once; subscribers drop duplicates by `id`, and for the same `id` the record with the higher `tree_rev` wins (a split leaf re-publishes its messages with a deeper path).
+- Outage waits, bad output falls back: LLM/Rabbit/SQLite errors retry the same message in place with backoff (1 s x2, max 300 s, interrupted by stop -> nack requeue) - never to `other` or DLQ. `InvalidModelOutput` is retried 3 times, then decide -> `other` / gate -> parent `other`, `reason=model_error`. Only invalid bodies go to the DLQ.
+- Loop guard: a message whose `x-reprocess >= settings.max_reprocess` (default 3) that lands in `other` again is marked `final` and never buffered again.
+- Message state lives only in the stream: `Resolved` (re-published ids) and `Considered` (ids already seen by discover) are records the learner appends; they apply only to copies with `at <= record.at`, so a newer copy of the same id is never dropped. The latest copy of an id wins. SQLite keeps only the tree, the changelog and `learner_state.other_offset` (oldest waiting copy).
+- Retention: stream `x-max-age`/`x-max-length-bytes` (`OTHER_MAX_AGE`/`OTHER_MAX_BYTES`); the learner re-publishes waiting copies older than half the max age every `OTHER_REFRESH_S`. Stream arguments of a live stream cannot change (`PRECONDITION_FAILED`); all processes must use the same values.
+- Topic `id` is `^[a-z0-9_]+$`, not `root`/`other`, globally unique (it is a routing-key segment); discover suffixes collisions (`cards_2`). A discovered `guard` must be a real question (`guard_is_meaningful`: >= 15 chars, has `?`, not starting with yes/no/да/нет).
+- Tree changes are incremental (`domain/changes.py`): add / move / edit / archive (with subtree), each one changelog row and `tree_rev + 1` in one SQLite transaction; no snapshots, no rollback. Archived ids can be reused.
 
 ## Editing the rule tree
 
-Rules live in Postgres as immutable versions; edit via CLI, not SQL: `uv run llm-sorter rules pull -o rules.yml` -> edit -> `rules publish rules.yml` (optimistic: base version from the file's `version`, or `--base`; conflict -> pull again) ; `rules rollback <version>` publishes an old version as a new one; `rules show` prints the active tree. A manual YAML whose root `uid` differs from the active root is rejected ("root uid mismatch - run `rules pull` first"). When an edit removes a node or all its children, that node's `other` buffer moves to the nearest live ancestor that still has `other`.
-
-## Known limitations
-
-- Changing `SWEEP_INTERVAL_S` does not update an existing Temporal schedule (delete the schedule `SWEEP_SCHEDULE_ID` to recreate it).
-- Re-running a classify workflow after Temporal retention has dropped its history repeats its actions (the stored decision is replayed by `run_id`, but side effects are not deduplicated beyond that).
+Via CLI only: `topics show` (tree with routing keys), `topics add ID --title T --description D [--parent P] [--guard G]`, `topics move ID PARENT`, `topics edit ID --title ...`, `topics archive ID`, `topics import FILE [--replace]` / `topics export [-o FILE]` (flat YAML: `settings` + `topics` list with `parent`), `topics log`. Seed for the synthetic dataset: `datasets/synthetic-v1/topics.yml`. Moving a topic changes its routing key - bindings on the old path stop receiving it.
 
 ## Git
 

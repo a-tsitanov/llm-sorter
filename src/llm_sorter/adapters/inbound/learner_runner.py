@@ -1,11 +1,10 @@
 """Дообучение как процесс: читает stream other, раз в check_s запускает discover."""
 
 import asyncio
-import contextlib
 import fcntl
 import logging
 import time
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -15,6 +14,7 @@ from typing import Any, Protocol, TextIO
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
 
+from llm_sorter.adapters.inbound.processor import Wait, wait_or_stop
 from llm_sorter.adapters.outbound.rabbit import Names, RabbitBus, declare_topology
 from llm_sorter.application.learner import OFFSET_KEY, Learner, Proposer
 from llm_sorter.domain.messages import load_record
@@ -27,12 +27,6 @@ STREAM_PREFETCH = 500  # stream без prefetch не отдаёт сообщен
 BACKOFF_START_S = 1.0
 BACKOFF_MAX_S = 300.0
 
-Wait = Callable[[asyncio.Event, float], Awaitable[None]]
-
-
-async def wait_or_stop(stop: asyncio.Event, seconds: float) -> None:
-    with contextlib.suppress(TimeoutError):
-        await asyncio.wait_for(stop.wait(), seconds)
 
 
 class LearnerLock:
