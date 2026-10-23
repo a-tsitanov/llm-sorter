@@ -109,7 +109,7 @@ def _level_hint(level: int, max_depth: int) -> str:
     )
 
 
-class LMStudioDecision:
+class LLMDecision:
     def __init__(self, client: AsyncOpenAI, model: str) -> None:
         self._client = client
         self._model = model
@@ -128,7 +128,7 @@ class LMStudioDecision:
         return _pick_enum(data, "choice", ids)
 
 
-class LMStudioGuard:
+class LLMGuard:
     def __init__(self, client: AsyncOpenAI, model: str) -> None:
         self._client = client
         self._model = model
@@ -164,23 +164,10 @@ _PROPOSAL_SCHEMA: dict[str, Any] = {
 }
 
 
-class LMStudioText:
+class LLMText:
     def __init__(self, client: AsyncOpenAI, model: str) -> None:
         self._client = client
         self._model = model
-
-    async def translate(self, text: str, to: str) -> str:
-        system = f"Переведи текст на язык: {to}. Верни только перевод, без пояснений."
-        out = await _chat(self._client, self._model, system, text, _GENERATION_TEMPERATURE)
-        return out.strip()
-
-    async def summarize(self, text: str, language: str) -> str:
-        system = (
-            f"Кратко перескажи разговор в 3-5 предложениях на языке: {language}. "
-            "Верни только пересказ."
-        )
-        out = await _chat(self._client, self._model, system, text, _GENERATION_TEMPERATURE)
-        return out.strip()
 
     async def propose_topic(
         self,
@@ -245,7 +232,7 @@ class LMStudioText:
         return _pick_enum(data, "answer", ["yes", "no"]) == "yes"
 
 
-class LMStudioEmbedder:
+class LLMEmbedder:
     def __init__(self, client: AsyncOpenAI, model: str) -> None:
         self._client = client
         self._model = model

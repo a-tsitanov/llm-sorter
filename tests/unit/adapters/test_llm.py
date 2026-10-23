@@ -4,11 +4,11 @@ import httpx2
 import pytest
 from openai import AsyncOpenAI
 
-from llm_sorter.adapters.outbound.lmstudio import (
-    LMStudioDecision,
-    LMStudioEmbedder,
-    LMStudioGuard,
-    LMStudioText,
+from llm_sorter.adapters.outbound.llm import (
+    LLMDecision,
+    LLMEmbedder,
+    LLMGuard,
+    LLMText,
     make_openai_client,
 )
 from llm_sorter.domain.traversal import Candidate
@@ -81,7 +81,7 @@ def _cands() -> list[Candidate]:
 
 async def test_decide_returns_choice(route: Route) -> None:
     route.mock(CHAT, _chat('{"choice":"crypto"}'))
-    result = await LMStudioDecision(_client(), "m").decide("текст", _cands())
+    result = await LLMDecision(_client(), "m").decide("текст", _cands())
     assert result == "crypto"
     body = route.last_body
     assert body["temperature"] == 0
@@ -101,18 +101,18 @@ async def test_decide_returns_choice(route: Route) -> None:
 async def test_decide_out_of_enum_raises(route: Route) -> None:
     route.mock(CHAT, _chat('{"choice":"nft"}'))
     with pytest.raises(InvalidModelOutput):
-        await LMStudioDecision(_client(), "m").decide("t", _cands())
+        await LLMDecision(_client(), "m").decide("t", _cands())
 
 
 async def test_decide_bad_json_raises(route: Route) -> None:
     route.mock(CHAT, _chat("crypto"))
     with pytest.raises(InvalidModelOutput):
-        await LMStudioDecision(_client(), "m").decide("t", _cands())
+        await LLMDecision(_client(), "m").decide("t", _cands())
 
 
 async def test_guard_yes_no(route: Route) -> None:
     route.mock(CHAT, _chat('{"answer":"yes"}'))
-    guard = LMStudioGuard(_client(), "m")
+    guard = LLMGuard(_client(), "m")
     assert await guard.check("t", "q?") is True
     body = route.last_body
     assert body["temperature"] == 0
@@ -127,7 +127,7 @@ async def test_guard_yes_no(route: Route) -> None:
 async def test_guard_invalid_raises(route: Route) -> None:
     route.mock(CHAT, _chat('{"answer":"maybe"}'))
     with pytest.raises(InvalidModelOutput):
-        await LMStudioGuard(_client(), "m").check("t", "q?")
+        await LLMGuard(_client(), "m").check("t", "q?")
 
 
 async def test_propose_topic_parses(route: Route) -> None:
@@ -139,7 +139,7 @@ async def test_propose_topic_parses(route: Route) -> None:
         "guard": "Обсуждается ли DeFi?",
     }
     route.mock(CHAT, _chat(json.dumps(payload)))
-    proposal = await LMStudioText(_client(), "m").propose_topic(
+    proposal = await LLMText(_client(), "m").propose_topic(
         ["s1", "s2"], "root/crypto", _cands()[:2], "ru", level=2, max_depth=3
     )
     assert proposal.id == "defi_news"
@@ -159,7 +159,7 @@ async def test_propose_topic_drops_blank_examples(route: Route) -> None:
         "guard": "g",
     }
     route.mock(CHAT, _chat(json.dumps(payload)))
-    proposal = await LMStudioText(_client(), "m").propose_topic(
+    proposal = await LLMText(_client(), "m").propose_topic(
         ["s"], "root", [], "ru", level=1, max_depth=3
     )
     assert proposal.examples == ["фраза"]
@@ -174,7 +174,7 @@ async def test_propose_topic_prompt_has_level(
 ) -> None:
     payload = {"id": "x", "title": "t", "description": "d", "examples": ["e"], "guard": "g"}
     route.mock(CHAT, _chat(json.dumps(payload)))
-    await LMStudioText(_client(), "m").propose_topic(
+    await LLMText(_client(), "m").propose_topic(
         ["s"], "root", [], "ru", level=level, max_depth=max_depth
     )
     system = route.last_body["messages"][0]["content"]
@@ -187,31 +187,19 @@ async def test_propose_topic_bad_id_raises(route: Route) -> None:
     payload = {"id": "Bad Id", "title": "t", "description": "d", "examples": [], "guard": "g"}
     route.mock(CHAT, _chat(json.dumps(payload)))
     with pytest.raises(InvalidModelOutput):
-        await LMStudioText(_client(), "m").propose_topic(
-            ["s"], "root", [], "ru", level=1, max_depth=3
-        )
+        await LLMText(_client(), "m").propose_topic(["s"], "root", [], "ru", level=1, max_depth=3)
 
 
 async def test_propose_topic_missing_field_raises(route: Route) -> None:
     route.mock(CHAT, _chat('{"id":"x"}'))
     with pytest.raises(InvalidModelOutput):
-        await LMStudioText(_client(), "m").propose_topic(
-            ["s"], "root", [], "ru", level=1, max_depth=3
-        )
-
-
-async def test_translate_and_summarize(route: Route) -> None:
-    route.mock(CHAT, _chat("  результат \n"))
-    text = LMStudioText(_client(), "m")
-    assert await text.translate("hello", "ru") == "результат"
-    assert route.last_body["temperature"] == 0.2
-    assert await text.summarize("long", "ru") == "результат"
+        await LLMText(_client(), "m").propose_topic(["s"], "root", [], "ru", level=1, max_depth=3)
 
 
 async def test_same_topic(route: Route) -> None:
     route.mock(CHAT, _chat('{"answer":"yes"}'))
     a, b = _cands()[:2]
-    assert await LMStudioText(_client(), "m").same_topic(a, b) is True
+    assert await LLMText(_client(), "m").same_topic(a, b) is True
     assert route.last_body["temperature"] == 0
 
 
@@ -231,7 +219,7 @@ async def test_embed_order(route: Route) -> None:
             },
         ),
     )
-    vecs = await LMStudioEmbedder(_client(), "e").embed(["a", "b"])
+    vecs = await LLMEmbedder(_client(), "e").embed(["a", "b"])
     assert vecs == [[1.0, 0.0], [0.0, 1.0]]
     assert route.last_body["input"] == ["a", "b"]
 

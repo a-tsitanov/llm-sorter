@@ -17,10 +17,6 @@ class GuardModel(Protocol):
 
 
 class TextLLM(Protocol):
-    async def translate(self, text: str, to: str) -> str: ...
-
-    async def summarize(self, text: str, language: str) -> str: ...
-
     async def propose_topic(
         self,
         samples: list[str],
