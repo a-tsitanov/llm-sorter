@@ -14,8 +14,17 @@ from llm_sorter.ports.models import InvalidModelOutput
 _ID_RE = re.compile(r"^[a-z0-9_]+$")
 _MAX_EXAMPLES = 3
 _GENERATION_TEMPERATURE = 0.2
-# статусы, которые не исправятся повтором (длина контекста, схема, нет модели)
-_REJECTED = {400, 404, 413, 422}
+# статусы, которые не исправятся повтором для этого сообщения (длина контекста, схема).
+# 404 и model_not_found - ошибка конфигурации (неверное имя модели): её ждут, как сбой,
+# иначе всё молча уйдёт в other с model_error
+_REJECTED = {400, 413, 422}
+
+
+def _config_error(e: APIStatusError) -> bool:
+    code = getattr(e, "code", None)
+    return e.status_code == 404 or code == "model_not_found"
+
+
 # столько символов сообщения уходит в decide/guard: длинный текст не должен
 # упираться в контекст модели, а начало разговора несёт тему
 MAX_TEXT_CHARS = 12000
@@ -62,7 +71,7 @@ async def _chat(
             **kwargs,
         )
     except APIStatusError as e:
-        if e.status_code in _REJECTED:
+        if e.status_code in _REJECTED and not _config_error(e):
             # повтор даст тот же отказ: это невалидный выход, а не сбой связи
             raise InvalidModelOutput(f"model request rejected: {e.status_code} {e.message}") from e
         raise

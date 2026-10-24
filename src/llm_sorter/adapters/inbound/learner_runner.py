@@ -83,6 +83,8 @@ class Maintainable(Protocol):
 
     async def refresh_if_due(self, every: timedelta, max_age: timedelta) -> int | None: ...
 
+    async def reconsider_all(self) -> int: ...
+
 
 async def maintenance_loop(
     learner: Maintainable,
@@ -93,6 +95,7 @@ async def maintenance_loop(
     stop: asyncio.Event,
     wait: Wait = wait_or_stop,
     ready: Callable[[], bool] = lambda: True,
+    reconsider: bool = False,
 ) -> None:
     """Пороги -> discover -> позиция; переиздание старых раз в refresh_s.
     Пока stream не дочитан до своей метки (ready), буферы неполны: discover ждёт.
@@ -101,6 +104,9 @@ async def maintenance_loop(
         if stop.is_set():
             return
         await wait(stop, CATCH_UP_POLL_S)
+    if reconsider:
+        count = await learner.reconsider_all()
+        log.info("reconsider: %d waiting messages re-published as new", count)
     every = timedelta(seconds=refresh_s)
     delay = BACKOFF_START_S
     while not stop.is_set():
@@ -138,6 +144,7 @@ async def run_learner(
     other_max_age: str,
     other_max_bytes: int,
     stop: asyncio.Event,
+    reconsider: bool = False,
 ) -> None:
     conn = await aio_pika.connect_robust(url)
     try:
@@ -187,6 +194,7 @@ async def run_learner(
                 max_age_timedelta(other_max_age) / 2,
                 stop,
                 ready=lambda: learner.has_seen(token),
+                reconsider=reconsider,
             )
         finally:
             await queue.cancel(tag)

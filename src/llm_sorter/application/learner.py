@@ -197,6 +197,17 @@ class Learner:
             count += len(old)
         return count
 
+    async def reconsider_all(self) -> int:
+        """Переиздаёт все ждущие копии с at=now и без Considered: пометки «уже рассмотрено»
+        снимаются (например, после discover, упавшего из-за неверной конфигурации моделей)."""
+        now = self._now()
+        count = 0
+        for node in list(self._buffers):
+            for p in self.buffer(node):
+                await self._bus.other(p.item.model_copy(update={"at": now}))
+                count += 1
+        return count
+
     async def refresh_if_due(self, every: timedelta, max_age: timedelta) -> int | None:
         """refresh_old не чаще every; время последнего хранится в SQLite и переживает
         перезапуски (иначе при деплоях чаще раза в сутки переиздание не случалось бы)."""

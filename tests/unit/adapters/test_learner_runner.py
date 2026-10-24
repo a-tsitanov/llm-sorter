@@ -146,3 +146,26 @@ def test_stream_gap(saved: int | None, first: int, lost: int) -> None:
     from llm_sorter.adapters.inbound.learner_runner import stream_gap
 
     assert stream_gap(saved, first) == lost
+
+
+async def test_reconsider_runs_once_after_catch_up() -> None:
+    class L(FakeLearner):
+        reconsidered = 0
+
+        async def reconsider_all(self) -> int:
+            self.reconsidered += 1
+            return 0
+
+    stop = asyncio.Event()
+    lr = L()
+    await maintenance_loop(
+        lr,
+        StreamPosition(next=0),
+        30.0,
+        3600.0,
+        timedelta(days=15),
+        stop,  # type: ignore[arg-type]
+        Waits(stop, stop_after=2),
+        reconsider=True,
+    )
+    assert lr.reconsidered == 1 and lr.runs == 2

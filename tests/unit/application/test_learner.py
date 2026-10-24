@@ -322,3 +322,19 @@ async def test_refresh_schedule_survives_restart(store: SqliteTopicStore) -> Non
     assert await restarted.refresh_if_due(every, age) is None
     clock.t += timedelta(hours=25)
     assert await restarted.refresh_if_due(every, age) == 1
+
+
+async def test_reconsider_all_clears_considered(store: SqliteTopicStore) -> None:
+    clock, bus = Clock(), FakeBus()
+    lr = learner(store, FakeDiscover(), bus, clock=clock)
+    fill(lr, 3)
+    lr.feed(3, Considered(node=ROOT_ID, ids=["m0", "m1", "m2"], at=T0))
+    assert await lr.reconsider_all() == 3
+    assert [r.kind for r in bus.records] == ["item"] * 3  # без Considered
+    for i, r in enumerate(bus.records):  # копии читаются из stream и заменяют старые
+        lr.feed(10 + i, r)
+    assert [(p.offset, p.considered) for p in lr.buffer(ROOT_ID)] == [
+        (10, False),
+        (11, False),
+        (12, False),
+    ]

@@ -247,6 +247,10 @@ def process(
 @app.command("learn")
 def learn(
     metrics_port: Annotated[int | None, typer.Option(help="0 - без метрик")] = None,
+    reconsider: Annotated[
+        bool,
+        typer.Option("--reconsider", help="снять пометки «рассмотрено» со всех ждущих сообщений"),
+    ] = False,
 ) -> None:
     """Дообучение: буферы из stream other, discover по порогу, перегон в inbox."""
     cfg = AppConfig()
@@ -267,6 +271,7 @@ def learn(
                 cfg.other_max_age,
                 cfg.other_max_bytes,
                 stop,
+                reconsider,
             )
         finally:
             await store.close()

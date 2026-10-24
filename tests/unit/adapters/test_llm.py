@@ -237,7 +237,7 @@ def _error(status: int) -> httpx2.Response:
     return httpx2.Response(status, json={"error": {"message": "boom", "type": "x"}})
 
 
-@pytest.mark.parametrize("status", [400, 404, 413, 422])
+@pytest.mark.parametrize("status", [400, 413, 422])
 async def test_deterministic_4xx_is_invalid_output(route: Route, status: int) -> None:
     """Запрос, который всегда будет отвергнут, не должен ретраиться вечно как сбой связи."""
     route.mock(CHAT, _error(status))
@@ -245,7 +245,7 @@ async def test_deterministic_4xx_is_invalid_output(route: Route, status: int) ->
         await LLMDecision(_client(), "m").decide("t", _cands())
 
 
-@pytest.mark.parametrize("status", [408, 429, 500, 503])
+@pytest.mark.parametrize("status", [404, 408, 429, 500, 503])
 async def test_transient_errors_propagate(route: Route, status: int) -> None:
     from openai import APIStatusError
 
@@ -261,3 +261,26 @@ async def test_long_text_truncated_in_prompt(route: Route) -> None:
     await LLMGuard(_client(), "m").check("я" * (MAX_TEXT_CHARS * 3), "q?")
     user = route.last_body["messages"][1]["content"]
     assert user.count("я") == MAX_TEXT_CHARS
+
+
+async def test_model_not_found_is_config_error_not_bad_output(route: Route) -> None:
+    """LM Studio отвечает 400 model_not_found на неверное имя: это конфиг, его ждут, а не фолбэк."""
+    from openai import APIStatusError
+
+    route.mock(
+        CHAT,
+        httpx2.Response(
+            400,
+            json={
+                "error": {
+                    "message": 'Invalid model identifier "qwen3-4b".',
+                    "type": "invalid_request_error",
+                    "param": "model",
+                    "code": "model_not_found",
+                }
+            },
+        ),
+    )
+    with pytest.raises(APIStatusError) as e:
+        await LLMDecision(_client(), "qwen3-4b").decide("t", _cands())
+    assert not isinstance(e.value, InvalidModelOutput)
