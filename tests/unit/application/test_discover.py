@@ -114,14 +114,14 @@ async def test_id_collision_in_other_branch_gets_suffix(
 
 
 @pytest.mark.parametrize("guard", ["yes", "Да, если про налоги", ""])
-async def test_meaningless_guard_rejected(
+async def test_meaningless_guard_replaced_with_default(
     embedder: FakeEmbedder, metrics: RecordingMetrics, guard: str
 ) -> None:
+    """Модель пишет ответ вместо вопроса: тема принимается, guard - стандартный вопрос."""
     text = FakeText([proposal(guard=guard)])
-    texts = cluster(embedder, "tax", 5)
-    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
-    assert res.accepted == [] and sorted(res.considered) == list(range(12))
-    assert metrics.counts["model_error:discover"] == 1
+    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "tax", 5))
+    [a] = res.accepted
+    assert a.topic.guard == "Этот разговор действительно на тему «Налоги»: Налоговые вопросы?"
 
 
 async def test_invalid_output_skipped(embedder: FakeEmbedder, metrics: RecordingMetrics) -> None:
@@ -271,3 +271,14 @@ async def test_embed_more_texts_than_cache(
     monkeypatch.setattr(d, "EMBED_CACHE_SIZE", 3)
     s = svc(embedder, FakeText([]), metrics)
     assert len(await s._embed([f"t{i}" for i in range(10)])) == 10
+
+
+async def test_accepted_topics_shown_to_model_as_siblings(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    text = FakeText(
+        [proposal(), proposal(id_="cashback", title="Кэшбэк", description="Кэшбэк по картам")]
+    )
+    texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
+    await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
+    assert text.siblings == [["finance", "tech"], ["finance", "tech", "taxes"]]

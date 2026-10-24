@@ -2,7 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from llm_sorter.domain.tree import DiscoverSettings, Tree
+from llm_sorter.domain.traversal import guard_question
+from llm_sorter.domain.tree import DiscoverSettings, Topic, Tree
 from llm_sorter.domain.validation import ID_RE, RESERVED_IDS, guard_is_meaningful
 
 
@@ -38,11 +39,21 @@ def dedup_verdict(similarity: float, s: DiscoverSettings) -> Literal["dup", "ask
 
 
 def proposal_is_valid(p: TopicProposal) -> bool:
-    """Предложение пройдёт validate_tree и несёт осмысленный вопрос гейта."""
+    """Предложение пройдёт validate_tree. guard не проверяется: его чинит fix_guard."""
     return (
         bool(ID_RE.match(p.id))
         and p.id not in RESERVED_IDS
         and bool(p.title.strip())
         and bool(p.description.strip())
-        and guard_is_meaningful(p.guard)
     )
+
+
+def fix_guard(p: TopicProposal) -> TopicProposal:
+    """Модель пишет ответ («yes») вместо вопроса: подставляем стандартный вопрос из
+    названия и описания, чтобы тема не терялась, а в дерево не попал пустой гейт."""
+    if guard_is_meaningful(p.guard):
+        return p
+    question = guard_question(
+        Topic(id=p.id, parent_id=None, title=p.title, description=p.description)
+    )
+    return p.model_copy(update={"guard": question})

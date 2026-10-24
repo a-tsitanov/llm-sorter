@@ -284,3 +284,13 @@ async def test_model_not_found_is_config_error_not_bad_output(route: Route) -> N
     with pytest.raises(APIStatusError) as e:
         await LLMDecision(_client(), "qwen3-4b").decide("t", _cands())
     assert not isinstance(e.value, InvalidModelOutput)
+
+
+async def test_propose_prompt_asks_for_question_not_answer(route: Route) -> None:
+    route.mock(
+        CHAT,
+        _chat('{"id":"t","title":"T","description":"D","examples":["e"],"guard":"Разговор о T?"}'),
+    )
+    await LLMText(_client(), "m").propose_topic(["s"], "", [], "ru", level=1, max_depth=3)
+    system = route.last_body["messages"][0]["content"]
+    assert "не ответ" in system and "?" in system

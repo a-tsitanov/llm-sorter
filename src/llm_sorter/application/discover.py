@@ -8,6 +8,7 @@ from llm_sorter.application.clustering import cluster, cosine, diverse_samples
 from llm_sorter.domain.discover import (
     TopicProposal,
     dedup_verdict,
+    fix_guard,
     proposal_is_valid,
     slots_left,
 )
@@ -42,6 +43,10 @@ def _topic_text(title: str, description: str) -> str:
 
 def _as_candidate(p: TopicProposal) -> Candidate:
     return Candidate(id=p.id, title=p.title, description=p.description, examples=list(p.examples))
+
+
+def _as_candidate_topic(t: Topic) -> Candidate:
+    return Candidate(id=t.id, title=t.title, description=t.description, examples=list(t.examples))
 
 
 def _free_id(base: str, taken: set[str]) -> str:
@@ -102,7 +107,8 @@ class DiscoverService:
                 p = await self._text.propose_topic(
                     samples,
                     tree.routing_key(node_id),
-                    siblings,
+                    # и уже принятые в этом прогоне: иначе модель предлагает их снова
+                    [*siblings, *(_as_candidate_topic(a.topic) for a in accepted)],
                     tree.settings.language,
                     level=tree.depth(node_id) + 1,
                     max_depth=tree.max_depth_for(node_id),
@@ -113,6 +119,7 @@ class DiscoverService:
             if not proposal_is_valid(p):
                 self._metrics.model_error("discover")
                 continue
+            p = fix_guard(p)
             if neighbours is None:
                 vecs = await self._embed(
                     [_topic_text(c.title, c.description) for c in dedup_against]

@@ -51,7 +51,7 @@ def _p(**kw: str) -> TopicProposal:
         ({"id": "root"}, False),
         ({"title": " "}, False),
         ({"description": ""}, False),
-        ({"guard": "yes"}, False),
+        ({"guard": "yes"}, True),  # guard чинит discover, тема из-за него не теряется
     ],
 )
 def test_proposal_is_valid(kw: dict[str, str], ok: bool) -> None:
