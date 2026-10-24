@@ -63,3 +63,13 @@ def test_guard_shares_main_endpoint_by_default() -> None:
 
     models = build_models(AppConfig(_env_file=None))  # type: ignore[call-arg]
     assert models["guard"]._client is models["decision"]._client
+
+
+def test_text_uses_own_endpoint_when_set() -> None:
+    from llm_sorter.bootstrap import build_models
+
+    cfg = AppConfig(_env_file=None, llm_text_url="http://text:4014/v1")  # type: ignore[call-arg]
+    models = build_models(cfg)
+    text = models["text"]._client
+    assert str(text.base_url) == "http://text:4014/v1/" and text.api_key == "lm-studio"
+    assert models["embedder"]._client is models["decision"]._client

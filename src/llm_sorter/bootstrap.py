@@ -2,7 +2,9 @@
 
 from typing import Any
 
+from openai import AsyncOpenAI
 from prometheus_client import start_http_server
+from pydantic import SecretStr
 
 from llm_sorter.adapters.inbound.processor import TreeCache
 from llm_sorter.adapters.outbound.llm import (
@@ -39,15 +41,18 @@ def build_models(cfg: AppConfig, overrides: dict[str, Any] | None = None) -> dic
         raise ValueError(f"unknown overrides: {sorted(unknown)}")
     if MODEL_KEYS <= set(ov):
         return ov
-    client = make_openai_client(cfg.llm_url, cfg.llm_api_key.get_secret_value())
-    guard_client = client
-    if cfg.llm_guard_url:
-        key = cfg.llm_guard_api_key.get_secret_value() or cfg.llm_api_key.get_secret_value()
-        guard_client = make_openai_client(cfg.llm_guard_url, key)
+    main_key = cfg.llm_api_key.get_secret_value()
+    client = make_openai_client(cfg.llm_url, main_key)
+
+    def own_client(url: str, key: SecretStr) -> AsyncOpenAI:
+        if not url:
+            return client
+        return make_openai_client(url, key.get_secret_value() or main_key)
+
     models: dict[str, Any] = {
         "decision": LLMDecision(client, cfg.model_decide),
-        "guard": LLMGuard(guard_client, cfg.model_guard),
-        "text": LLMText(client, cfg.model_text),
+        "guard": LLMGuard(own_client(cfg.llm_guard_url, cfg.llm_guard_api_key), cfg.model_guard),
+        "text": LLMText(own_client(cfg.llm_text_url, cfg.llm_text_api_key), cfg.model_text),
         "embedder": LLMEmbedder(client, cfg.model_embed),
     }
     return {**models, **ov}

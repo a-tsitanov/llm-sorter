@@ -12,9 +12,11 @@ class AppConfig(BaseSettings):
     # OpenAI-совместимый сервер моделей (vLLM, LM Studio ...)
     llm_url: str = "http://localhost:1234/v1"
     llm_api_key: SecretStr = SecretStr("lm-studio")
-    # гейт на отдельном сервере; пусто - тот же LLM_URL / LLM_API_KEY
+    # гейт и модель discover на отдельных серверах; пусто - тот же LLM_URL / LLM_API_KEY
     llm_guard_url: str = ""
     llm_guard_api_key: SecretStr = SecretStr("")
+    llm_text_url: str = ""
+    llm_text_api_key: SecretStr = SecretStr("")
     model_decide: str = "lfm2"
     model_guard: str = "qwen3-4b"
     model_text: str = "qwen3-4b"

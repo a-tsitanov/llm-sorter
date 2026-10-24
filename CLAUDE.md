@@ -10,7 +10,7 @@ Python `>=3.12,<3.14`, `uv` only (never bare `pip`). `make help` lists everythin
 
 - `make install` / `make lint` / `make fmt` / `make typecheck` / `make test` (unit, `-m "not integration"`)
 - Single test: `uv run pytest tests/unit/application/test_process.py::test_gate_failure_goes_to_parent_other -v`
-- `make up` / `make down` - docker compose: RabbitMQ 3.13 (streams), Prometheus, Grafana. Nothing else is needed besides an OpenAI-compatible model server (`LLM_URL`; the gate model may live on its own server, `LLM_GUARD_URL`/`LLM_GUARD_API_KEY`, empty = `LLM_URL`).
+- `make up` / `make down` - docker compose: RabbitMQ 3.13 (streams), Prometheus, Grafana. Nothing else is needed besides an OpenAI-compatible model server (`LLM_URL`; the gate and discover models may live on their own servers, `LLM_GUARD_URL`/`LLM_GUARD_API_KEY` and `LLM_TEXT_URL`/`LLM_TEXT_API_KEY`, empty = `LLM_URL`).
 - Processes: `make feed-dir` / `make feed-tg` (feeders), `make process` (any number of processors; second one on the same host needs `--metrics-port 0`), `make learn` (exactly one; enforced by a flock next to the SQLite file).
 - Integration (`make test-int`, `-m integration`): needs `make up` only; queue names get a random prefix per test and are deleted after. If RabbitMQ host ports are remapped (`RABBIT_PORT`/`RABBIT_MGMT_PORT`), `RABBIT_URL` must point to them (the repo `.env` does).
 - Metrics: processor serves Prometheus on `METRICS_PORT` (9100), learner on `LEARNER_METRICS_PORT` (9101); compose Prometheus scrapes both on `host.docker.internal`. Alerts `OtherLost` and `DiscoverBlocked` (`deploy/prometheus/rules.yml`): `llm_sorter_discover_blocked{node} == 1` for 30m - node at `max_children` with a non-empty buffer, needs a manual tree edit.
