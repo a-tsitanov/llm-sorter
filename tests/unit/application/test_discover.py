@@ -90,6 +90,7 @@ async def test_creates_topic_from_cluster(
     assert res.considered == [] and res.rejected == 0
     assert text.levels == [(1, 3)]  # дети root - уровень 1 при max_depth 3
     assert text.siblings == [["finance", "tech"]]
+    assert text.parents == [[]]  # корень
     assert 10 <= len(text.samples[0]) <= 12  # весь кластер: он меньше samples_per_cluster
 
 
@@ -187,6 +188,7 @@ async def test_leaf_splits_into_two(embedder: FakeEmbedder, metrics: RecordingMe
         ("limits", "cards"),
     ]
     assert text.levels[0] == (3, 3) and text.siblings[0] == []
+    assert text.parents[0] == ["finance", "cards"]  # цепочка от уровня 1 до делимого листа
 
 
 async def test_leaf_subtopic_same_as_leaf_rejected(
@@ -282,3 +284,13 @@ async def test_accepted_topics_shown_to_model_as_siblings(
     texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
     await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
     assert text.siblings == [["finance", "tech"], ["finance", "tech", "taxes"]]
+
+
+async def test_covered_by_sibling_rejected(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    """Образцы уже покрывает соседняя тема: новая (перекрывающая) тема не создаётся."""
+    text = FakeText([proposal().model_copy(update={"covered_by": "tech"})])
+    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "tax", 5))
+    assert res.accepted == [] and res.rejected == 1
+    assert sorted(res.considered) == list(range(12))

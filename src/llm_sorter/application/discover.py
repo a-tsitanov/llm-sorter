@@ -86,6 +86,7 @@ class DiscoverService:
         node = tree.get(node_id)
 
         siblings = [c for c in candidates_for(tree, node_id) if c.id != OTHER_ID]
+        parents = [_as_candidate_topic(tree.get(i)) for i in tree.path(node_id)]
         # для листа подтемы сравниваются с самим листом: подтема-копия листа бесполезна
         dedup_against = siblings or [
             Candidate(id=node.id, title=node.title, description=node.description)
@@ -103,12 +104,13 @@ class DiscoverService:
                 texts[valid[i]][: s.sample_chars]
                 for i in diverse_samples(vectors, group, s.samples_per_cluster)
             ]
+            # и уже принятые в этом прогоне: иначе модель предлагает их снова
+            shown = [*siblings, *(_as_candidate_topic(a.topic) for a in accepted)]
             try:
                 p = await self._text.propose_topic(
                     samples,
-                    tree.routing_key(node_id),
-                    # и уже принятые в этом прогоне: иначе модель предлагает их снова
-                    [*siblings, *(_as_candidate_topic(a.topic) for a in accepted)],
+                    parents,
+                    shown,
                     tree.settings.language,
                     level=tree.depth(node_id) + 1,
                     max_depth=tree.max_depth_for(node_id),
@@ -118,6 +120,9 @@ class DiscoverService:
                 continue
             if not proposal_is_valid(p):
                 self._metrics.model_error("discover")
+                continue
+            if p.covered_by in {c.id for c in shown}:
+                rejected += 1  # образцы уже покрывает соседняя тема - перекрытие не нужно
                 continue
             p = fix_guard(p)
             if neighbours is None:

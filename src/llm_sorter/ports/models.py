@@ -20,13 +20,14 @@ class TextLLM(Protocol):
     async def propose_topic(
         self,
         samples: list[str],
-        parent_path: str,
+        parents: list[Candidate],
         siblings: list[Candidate],
         language: str,
         level: int,
         max_depth: int,
     ) -> TopicProposal:
-        """level - глубина новой темы (дети root - 1), max_depth - предел глубины ветки."""
+        """parents - цепочка от темы уровня 1 до родителя ([] - корень); level - глубина новой
+        темы (дети root - 1), max_depth - предел глубины ветки."""
         ...
 
     async def same_topic(self, a: Candidate, b: Candidate) -> bool: ...

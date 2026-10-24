@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,6 +19,8 @@ class AppConfig(BaseSettings):
     llm_text_url: str = ""
     llm_text_api_key: SecretStr = SecretStr("")
     model_decide: str = "lfm2"
+    # chat - JSON по схеме через chat/completions; systemone - decision-модель (d1), /v1/systemone
+    decide_protocol: Literal["chat", "systemone"] = "chat"
     model_guard: str = "qwen3-4b"
     model_text: str = "qwen3-4b"
     model_embed: str = "bge-m3"

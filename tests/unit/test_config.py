@@ -13,6 +13,7 @@ DEFAULTS = {
     "llm_text_url": "",
     "llm_text_api_key": SecretStr(""),
     "model_decide": "lfm2",
+    "decide_protocol": "chat",
     "model_guard": "qwen3-4b",
     "model_text": "qwen3-4b",
     "model_embed": "bge-m3",

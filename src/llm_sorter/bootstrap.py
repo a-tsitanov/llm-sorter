@@ -12,6 +12,7 @@ from llm_sorter.adapters.outbound.llm import (
     LLMEmbedder,
     LLMGuard,
     LLMText,
+    SystemOneDecision,
     make_openai_client,
 )
 from llm_sorter.adapters.outbound.noop_metrics import NoopMetrics
@@ -49,8 +50,9 @@ def build_models(cfg: AppConfig, overrides: dict[str, Any] | None = None) -> dic
             return client
         return make_openai_client(url, key.get_secret_value() or main_key)
 
+    decision_cls = SystemOneDecision if cfg.decide_protocol == "systemone" else LLMDecision
     models: dict[str, Any] = {
-        "decision": LLMDecision(client, cfg.model_decide),
+        "decision": decision_cls(client, cfg.model_decide),
         "guard": LLMGuard(own_client(cfg.llm_guard_url, cfg.llm_guard_api_key), cfg.model_guard),
         "text": LLMText(own_client(cfg.llm_text_url, cfg.llm_text_api_key), cfg.model_text),
         "embedder": LLMEmbedder(client, cfg.model_embed),

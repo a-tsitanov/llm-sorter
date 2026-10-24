@@ -71,6 +71,13 @@ def _chat(content: str) -> httpx2.Response:
     )
 
 
+def _parents() -> list[Candidate]:
+    return [
+        Candidate(id="finance", title="Финансы", description="Деньги и банки"),
+        Candidate(id="cards", title="Карты", description="Банковские карты"),
+    ]
+
+
 def _cands() -> list[Candidate]:
     return [
         Candidate(id="crypto", title="Крипто", description="Криптовалюты", examples=["a"] * 5),
@@ -140,13 +147,13 @@ async def test_propose_topic_parses(route: Route) -> None:
     }
     route.mock(CHAT, _chat(json.dumps(payload)))
     proposal = await LLMText(_client(), "m").propose_topic(
-        ["s1", "s2"], "root/crypto", _cands()[:2], "ru", level=2, max_depth=3
+        ["s1", "s2"], _parents(), _cands()[:2], "ru", level=2, max_depth=3
     )
     assert proposal.id == "defi_news"
     assert proposal.examples == ["e1", "e2"]
     body = route.last_body
     assert body["temperature"] == 0.2
-    assert "root/crypto" in body["messages"][-1]["content"]
+    assert "Финансы > Карты" in body["messages"][-1]["content"]
 
 
 async def test_propose_topic_drops_blank_examples(route: Route) -> None:
@@ -160,7 +167,7 @@ async def test_propose_topic_drops_blank_examples(route: Route) -> None:
     }
     route.mock(CHAT, _chat(json.dumps(payload)))
     proposal = await LLMText(_client(), "m").propose_topic(
-        ["s"], "root", [], "ru", level=1, max_depth=3
+        ["s"], [], [], "ru", level=1, max_depth=3
     )
     assert proposal.examples == ["фраза"]
 
@@ -175,7 +182,7 @@ async def test_propose_topic_prompt_has_level(
     payload = {"id": "x", "title": "t", "description": "d", "examples": ["e"], "guard": "g"}
     route.mock(CHAT, _chat(json.dumps(payload)))
     await LLMText(_client(), "m").propose_topic(
-        ["s"], "root", [], "ru", level=level, max_depth=max_depth
+        ["s"], [], [], "ru", level=level, max_depth=max_depth
     )
     system = route.last_body["messages"][0]["content"]
     assert f"уровень {level} из {max_depth}" in system
@@ -187,13 +194,13 @@ async def test_propose_topic_bad_id_raises(route: Route) -> None:
     payload = {"id": "Bad Id", "title": "t", "description": "d", "examples": [], "guard": "g"}
     route.mock(CHAT, _chat(json.dumps(payload)))
     with pytest.raises(InvalidModelOutput):
-        await LLMText(_client(), "m").propose_topic(["s"], "root", [], "ru", level=1, max_depth=3)
+        await LLMText(_client(), "m").propose_topic(["s"], [], [], "ru", level=1, max_depth=3)
 
 
 async def test_propose_topic_missing_field_raises(route: Route) -> None:
     route.mock(CHAT, _chat('{"id":"x"}'))
     with pytest.raises(InvalidModelOutput):
-        await LLMText(_client(), "m").propose_topic(["s"], "root", [], "ru", level=1, max_depth=3)
+        await LLMText(_client(), "m").propose_topic(["s"], [], [], "ru", level=1, max_depth=3)
 
 
 async def test_same_topic(route: Route) -> None:
@@ -291,6 +298,163 @@ async def test_propose_prompt_asks_for_question_not_answer(route: Route) -> None
         CHAT,
         _chat('{"id":"t","title":"T","description":"D","examples":["e"],"guard":"Разговор о T?"}'),
     )
-    await LLMText(_client(), "m").propose_topic(["s"], "", [], "ru", level=1, max_depth=3)
+    await LLMText(_client(), "m").propose_topic(["s"], [], [], "ru", level=1, max_depth=3)
     system = route.last_body["messages"][0]["content"]
     assert "не ответ" in system and "?" in system
+
+
+SYSTEMONE = "http://test/v1/systemone"
+
+
+def _answer(choice: str) -> httpx2.Response:
+    return httpx2.Response(
+        200,
+        json={
+            "answers": {
+                "topic": {
+                    "type": "choice",
+                    "choice": choice,
+                    "confidence": 0.9,
+                    "probabilities": {choice: 0.9},
+                }
+            },
+            "usage": {"input_tokens": 10, "output_tokens": 0},
+        },
+    )
+
+
+async def test_systemone_asks_one_choice_over_all_candidates(route: Route) -> None:
+    from llm_sorter.adapters.outbound.llm import SystemOneDecision
+
+    route.mock(SYSTEMONE, _answer("banks"))
+    cands = [
+        Candidate(id="crypto", title="Крипто", description="Криптовалюты,\nбиржи"),
+        Candidate(id="banks", title="Банки", description="Банковские услуги"),
+        Candidate(id="other", title="Other", description="Ничего не подходит"),
+    ]
+    assert await SystemOneDecision(_client(), "d1").decide("текст", cands) == "banks"
+    body = route.last_body
+    assert body["model"] == "d1" and body["state"] == "текст"
+    question = body["questions"]["topic"]
+    assert question["type"] == "choice" and question["instructions"].endswith("?")
+    assert question["criteria"] == {
+        "crypto": "Крипто: Криптовалюты, биржи",
+        "banks": "Банки: Банковские услуги",
+        "other": "Other: Ничего не подходит",
+    }
+
+
+async def test_systemone_truncates_state(route: Route) -> None:
+    from llm_sorter.adapters.outbound.llm import MAX_TEXT_CHARS, SystemOneDecision
+
+    route.mock(SYSTEMONE, _answer("other"))
+    await SystemOneDecision(_client(), "d1").decide("я" * (MAX_TEXT_CHARS * 2), _cands())
+    assert len(route.last_body["state"]) == MAX_TEXT_CHARS
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        _answer("cards"),  # не из кандидатов
+        httpx2.Response(200, json={"answers": {}}),
+        httpx2.Response(200, json={"usage": {}}),
+    ],
+)
+async def test_systemone_bad_answer_is_invalid_output(
+    route: Route, response: httpx2.Response
+) -> None:
+    from llm_sorter.adapters.outbound.llm import SystemOneDecision
+
+    route.mock(SYSTEMONE, response)
+    with pytest.raises(InvalidModelOutput):
+        await SystemOneDecision(_client(), "d1").decide("t", _cands())
+
+
+async def test_systemone_rejected_request_is_invalid_output(route: Route) -> None:
+    from llm_sorter.adapters.outbound.llm import SystemOneDecision
+
+    route.mock(SYSTEMONE, _error(422))
+    with pytest.raises(InvalidModelOutput, match="422"):
+        await SystemOneDecision(_client(), "d1").decide("t", _cands())
+
+
+async def test_systemone_unknown_model_is_config_error(route: Route) -> None:
+    """LM Studio: 400 invalidModelIdentifier, если decision-модель не скачана - ждём, не фолбэк."""
+    from openai import APIStatusError
+
+    from llm_sorter.adapters.outbound.llm import SystemOneDecision
+
+    route.mock(
+        SYSTEMONE,
+        httpx2.Response(
+            400,
+            json={
+                "error": {
+                    "message": "There are no downloaded decision models.",
+                    "type": "invalid_request_error",
+                    "param": "model",
+                    "code": "invalidModelIdentifier",
+                }
+            },
+        ),
+    )
+    with pytest.raises(APIStatusError) as e:
+        await SystemOneDecision(_client(), "d1").decide("t", _cands())
+    assert not isinstance(e.value, InvalidModelOutput)
+
+
+async def test_systemone_trims_long_descriptions(route: Route) -> None:
+    """Варианты идут после текста и читаются на каждом вызове: длинные описания - секунды на шаг."""
+    from llm_sorter.adapters.outbound.llm import CRITERION_CHARS, SystemOneDecision
+
+    route.mock(SYSTEMONE, _answer("other"))
+    cands = [
+        Candidate(id="a", title="A", description="слово " * 200),
+        Candidate(id="other", title="Other", description="Ничего не подходит"),
+    ]
+    await SystemOneDecision(_client(), "d1").decide("t", cands)
+    criteria = route.last_body["questions"]["topic"]["criteria"]
+    assert len(criteria["a"]) <= CRITERION_CHARS and criteria["a"].startswith("A: слово")
+    assert criteria["other"] == "Other: Ничего не подходит"
+
+
+_PROPOSAL = {
+    "id": "x",
+    "title": "t",
+    "description": "d",
+    "examples": ["e"],
+    "guard": "Разговор о t?",
+}
+
+
+async def test_propose_prompt_describes_parent(route: Route) -> None:
+    """Подтема должна знать смысл родителя, а не только его id."""
+    route.mock(CHAT, _chat(json.dumps(_PROPOSAL)))
+    await LLMText(_client(), "m").propose_topic(["s"], _parents(), [], "ru", level=3, max_depth=3)
+    user = route.last_body["messages"][-1]["content"]
+    assert "Финансы > Карты" in user and "Банковские карты" in user
+
+
+async def test_propose_prompt_root_parent(route: Route) -> None:
+    route.mock(CHAT, _chat(json.dumps(_PROPOSAL)))
+    await LLMText(_client(), "m").propose_topic(["s"], [], [], "ru", level=1, max_depth=3)
+    assert "корень" in route.last_body["messages"][-1]["content"]
+
+
+async def test_propose_prompt_asks_for_readable_english_id(route: Route) -> None:
+    route.mock(CHAT, _chat(json.dumps(_PROPOSAL)))
+    await LLMText(_client(), "m").propose_topic(["s"], [], [], "ru", level=1, max_depth=3)
+    system = route.last_body["messages"][0]["content"]
+    assert "английск" in system and "сокращ" in system and "military_action" in system
+
+
+async def test_propose_covered_by_limited_to_siblings(route: Route) -> None:
+    """Модель может сказать, что образцы уже покрывает соседняя тема - тогда новой не будет."""
+    route.mock(CHAT, _chat(json.dumps({**_PROPOSAL, "covered_by": "banks"})))
+    p = await LLMText(_client(), "m").propose_topic(
+        ["s"], [], _cands()[:2], "ru", level=1, max_depth=3
+    )
+    assert p.covered_by == "banks"
+    schema = route.last_body["response_format"]["json_schema"]["schema"]
+    assert schema["properties"]["covered_by"]["enum"] == ["", "crypto", "banks"]
+    assert "covered_by" in schema["required"]

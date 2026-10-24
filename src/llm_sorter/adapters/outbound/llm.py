@@ -20,14 +20,29 @@ _GENERATION_TEMPERATURE = 0.2
 _REJECTED = {400, 413, 422}
 
 
+# LM Studio: model_not_found для chat, invalidModelIdentifier для /v1/systemone
+_CONFIG_CODES = {"model_not_found", "invalidModelIdentifier"}
+
+
 def _config_error(e: APIStatusError) -> bool:
     code = getattr(e, "code", None)
-    return e.status_code == 404 or code == "model_not_found"
+    return e.status_code == 404 or code in _CONFIG_CODES
+
+
+def _rejected(e: APIStatusError) -> InvalidModelOutput | None:
+    """Отказ, который повтор не исправит, - невалидный выход; иначе None (сбой, ждём)."""
+    if e.status_code in _REJECTED and not _config_error(e):
+        return InvalidModelOutput(f"model request rejected: {e.status_code} {e.message}")
+    return None
 
 
 # столько символов сообщения уходит в decide/guard: длинный текст не должен
 # упираться в контекст модели, а начало разговора несёт тему
 MAX_TEXT_CHARS = 12000
+# длина варианта в systemone: варианты читаются после текста на каждом шаге спуска;
+# на 13 темах полные описания (~5.8k символов) - 3.6 с на шаг,
+# обрезка до 80 - 0.7 с при 28/30 тех же ответов
+CRITERION_CHARS = 120
 _LANG_NOTE = "Транскрипт может быть на любом языке; оценивай смысл независимо от языка."
 
 
@@ -71,9 +86,9 @@ async def _chat(
             **kwargs,
         )
     except APIStatusError as e:
-        if e.status_code in _REJECTED and not _config_error(e):
-            # повтор даст тот же отказ: это невалидный выход, а не сбой связи
-            raise InvalidModelOutput(f"model request rejected: {e.status_code} {e.message}") from e
+        # повтор даст тот же отказ: это невалидный выход, а не сбой связи
+        if (bad := _rejected(e)) is not None:
+            raise bad from e
         raise
     return resp.choices[0].message.content or ""
 
@@ -148,6 +163,43 @@ class LLMDecision:
         return _pick_enum(data, "choice", ids)
 
 
+class SystemOneDecision:
+    """Decide через decision-модель (Liquid d1): POST /v1/systemone, один вопрос choice по всем
+    кандидатам узла. Модель не генерирует текст, а возвращает вероятности вариантов."""
+
+    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    async def decide(self, text: str, candidates: list[Candidate]) -> str:
+        ids = [c.id for c in candidates]
+        criteria = {
+            c.id: " ".join(f"{c.title}: {c.description}".split())[:CRITERION_CHARS]
+            for c in candidates
+        }
+        body = {
+            "model": self._model,
+            "state": text[:MAX_TEXT_CHARS],
+            "questions": {
+                "topic": {
+                    "type": "choice",
+                    "instructions": "Which topic does this message belong to?",
+                    "criteria": criteria,
+                }
+            },
+        }
+        try:
+            data = await self._client.post("/systemone", cast_to=object, body=body)
+        except APIStatusError as e:
+            if (bad := _rejected(e)) is not None:
+                raise bad from e
+            raise
+        answer = data.get("answers", {}).get("topic") if isinstance(data, dict) else None
+        if not isinstance(answer, dict):
+            raise InvalidModelOutput(f"systemone: нет ответа topic: {data!r}")
+        return _pick_enum(answer, "choice", ids)
+
+
 class LLMGuard:
     def __init__(self, client: AsyncOpenAI, model: str) -> None:
         self._client = client
@@ -170,18 +222,28 @@ class LLMGuard:
         return _pick_enum(data, "answer", ["yes", "no"]) == "yes"
 
 
-_PROPOSAL_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
-        "title": {"type": "string"},
-        "description": {"type": "string"},
-        "examples": {"type": "array", "items": {"type": "string", "minLength": 1}},
-        "guard": {"type": "string"},
-    },
-    "required": ["id", "title", "description", "examples", "guard"],
-    "additionalProperties": False,
-}
+def _proposal_schema(sibling_ids: list[str]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "covered_by": {"type": "string", "enum": ["", *sibling_ids]},
+            "id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+            "title": {"type": "string"},
+            "description": {"type": "string"},
+            "examples": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "guard": {"type": "string"},
+        },
+        "required": ["covered_by", "id", "title", "description", "examples", "guard"],
+        "additionalProperties": False,
+    }
+
+
+def _parent_block(parents: list[Candidate]) -> str:
+    if not parents:
+        return "Родитель: корень дерева (новая тема - одна из тем первого уровня)."
+    p = parents[-1]
+    path = " > ".join(c.title for c in parents)
+    return f"Родитель: {path}\nОписание родителя: {p.description}"
 
 
 class LLMText:
@@ -192,7 +254,7 @@ class LLMText:
     async def propose_topic(
         self,
         samples: list[str],
-        parent_path: str,
+        parents: list[Candidate],
         siblings: list[Candidate],
         language: str,
         level: int,
@@ -206,7 +268,11 @@ class LLMText:
             "Тема должна покрывать ВСЕ образцы, а не один из них: если образцы о разном, назови "
             "то, что их объединяет, а не частный случай. В description перечисли подтемы, "
             "которые видны в образцах, - по нему другие модели будут относить разговоры к теме. "
-            "id - латиница нижнего регистра, цифры и подчёркивание. guard - сам вопрос, на "
+            "Если образцы уже покрывает одна из соседних тем, укажи её id в covered_by "
+            "(тогда новая тема не нужна), иначе covered_by - пустая строка. "
+            "id - 1-3 английских слова в snake_case по смыслу темы, полными словами, без "
+            "сокращений и транслита (military_action, finance, middle_east, не boe и не fin). "
+            "guard - сам вопрос, на "
             "который отвечают да или нет, проверяющий принадлежность разговора к теме; пиши "
             "вопрос, а не ответ (не «yes»), например: «Разговор о банковских картах?». "
             "examples - 2-3 короткие типичные "
@@ -217,7 +283,7 @@ class LLMText:
         neighbours = "\n".join(_format_candidate(c) for c in siblings) or "(нет)"
         numbered = "\n\n".join(f"[{i}] {s}" for i, s in enumerate(samples, 1))
         user = (
-            f"Путь родителя: {parent_path}\n\nСоседние темы (не повторять):\n{neighbours}"
+            f"{_parent_block(parents)}\n\nСоседние темы (не повторять):\n{neighbours}"
             f"\n\nОбразцы разговоров:\n{numbered}"
         )
         data = await _chat_json(
@@ -226,7 +292,7 @@ class LLMText:
             system,
             user,
             _GENERATION_TEMPERATURE,
-            _schema("topic_proposal", _PROPOSAL_SCHEMA),
+            _schema("topic_proposal", _proposal_schema([c.id for c in siblings])),
         )
         try:
             proposal = TopicProposal.model_validate(data)

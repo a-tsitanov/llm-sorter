@@ -92,11 +92,12 @@ class FakeText:
         self.samples: list[list[str]] = []
         self.levels: list[tuple[int, int]] = []
         self.siblings: list[list[str]] = []
+        self.parents: list[list[str]] = []
 
     async def propose_topic(
         self,
         samples: list[str],
-        parent_path: str,
+        parents: list[Candidate],
         siblings: list[Candidate],
         language: str,
         level: int,
@@ -108,6 +109,7 @@ class FakeText:
         self.samples.append(samples)
         self.levels.append((level, max_depth))
         self.siblings.append([c.id for c in siblings])
+        self.parents.append([c.id for c in parents])
         if not self.proposals:
             raise InvalidModelOutput("FakeText.proposals is empty")
         value = self.proposals.pop(0) if len(self.proposals) > 1 else self.proposals[0]

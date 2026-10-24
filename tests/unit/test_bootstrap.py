@@ -73,3 +73,12 @@ def test_text_uses_own_endpoint_when_set() -> None:
     text = models["text"]._client
     assert str(text.base_url) == "http://text:4014/v1/" and text.api_key == "lm-studio"
     assert models["embedder"]._client is models["decision"]._client
+
+
+def test_decide_protocol_selects_adapter() -> None:
+    from llm_sorter.adapters.outbound.llm import LLMDecision, SystemOneDecision
+    from llm_sorter.bootstrap import build_models
+
+    assert isinstance(build_models(AppConfig(_env_file=None))["decision"], LLMDecision)  # type: ignore[call-arg]
+    cfg = AppConfig(_env_file=None, decide_protocol="systemone")  # type: ignore[call-arg]
+    assert isinstance(build_models(cfg)["decision"], SystemOneDecision)

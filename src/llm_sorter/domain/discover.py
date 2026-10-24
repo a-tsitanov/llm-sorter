@@ -15,6 +15,8 @@ class TopicProposal(BaseModel):
     description: str
     examples: list[str]
     guard: str
+    # id соседней темы, которая уже покрывает образцы: тогда новая тема не создаётся
+    covered_by: str = ""
 
 
 def slots_left(tree: Tree, node_id: str) -> int:
