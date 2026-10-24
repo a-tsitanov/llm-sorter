@@ -40,9 +40,13 @@ def build_models(cfg: AppConfig, overrides: dict[str, Any] | None = None) -> dic
     if MODEL_KEYS <= set(ov):
         return ov
     client = make_openai_client(cfg.llm_url, cfg.llm_api_key.get_secret_value())
+    guard_client = client
+    if cfg.llm_guard_url:
+        key = cfg.llm_guard_api_key.get_secret_value() or cfg.llm_api_key.get_secret_value()
+        guard_client = make_openai_client(cfg.llm_guard_url, key)
     models: dict[str, Any] = {
         "decision": LLMDecision(client, cfg.model_decide),
-        "guard": LLMGuard(client, cfg.model_guard),
+        "guard": LLMGuard(guard_client, cfg.model_guard),
         "text": LLMText(client, cfg.model_text),
         "embedder": LLMEmbedder(client, cfg.model_embed),
     }

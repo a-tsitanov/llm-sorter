@@ -44,3 +44,22 @@ async def test_build_learner_uses_overrides(tmp_path: Path) -> None:
         assert isinstance(discover, DiscoverService) and isinstance(metrics, NoopMetrics)
     finally:
         await store.close()
+
+
+def test_guard_uses_own_endpoint_when_set() -> None:
+    from llm_sorter.bootstrap import build_models
+
+    cfg = AppConfig(  # type: ignore[call-arg]
+        _env_file=None, llm_guard_url="http://guard:4014/v1", llm_guard_api_key="gk"
+    )
+    models = build_models(cfg)
+    guard, decision = models["guard"]._client, models["decision"]._client
+    assert str(guard.base_url) == "http://guard:4014/v1/" and guard.api_key == "gk"
+    assert str(decision.base_url) == "http://localhost:1234/v1/"
+
+
+def test_guard_shares_main_endpoint_by_default() -> None:
+    from llm_sorter.bootstrap import build_models
+
+    models = build_models(AppConfig(_env_file=None))  # type: ignore[call-arg]
+    assert models["guard"]._client is models["decision"]._client

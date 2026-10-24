@@ -8,6 +8,8 @@ from llm_sorter.config import AppConfig
 DEFAULTS = {
     "llm_url": "http://localhost:1234/v1",
     "llm_api_key": SecretStr("lm-studio"),
+    "llm_guard_url": "",
+    "llm_guard_api_key": SecretStr(""),
     "model_decide": "lfm2",
     "model_guard": "qwen3-4b",
     "model_text": "qwen3-4b",
