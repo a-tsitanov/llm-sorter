@@ -7,7 +7,7 @@ from typing import Any
 from openai import APIStatusError, AsyncOpenAI
 from pydantic import ValidationError
 
-from llm_sorter.domain.discover import TopicProposal
+from llm_sorter.domain.discover import TopicGroup, TopicProposal
 from llm_sorter.domain.traversal import Candidate
 from llm_sorter.ports.models import InvalidModelOutput
 
@@ -238,6 +238,37 @@ def _proposal_schema(sibling_ids: list[str]) -> dict[str, Any]:
     }
 
 
+def _topic_rules(language: str) -> str:
+    """Общие правила полей темы для propose_topic и group_clusters."""
+    return (
+        "В description перечисли подтемы, которые видны в образцах, - по нему другие модели "
+        "будут относить разговоры к теме. "
+        "id - 1-3 английских слова в snake_case по смыслу темы, полными словами, без "
+        "сокращений и транслита (military_action, finance, middle_east, не boe и не fin). "
+        "guard - сам вопрос, на который отвечают да или нет, проверяющий принадлежность "
+        "разговора к теме; пиши вопрос, а не ответ (не «yes»), например: «Разговор о "
+        "банковских картах?». examples - 2-3 короткие типичные фразы из разговоров этой темы. "
+        f"Title, description, examples и guard пиши на языке: {language}. "
+        "Не повторяй уже существующие темы. " + _LANG_NOTE
+    )
+
+
+def _parse_proposal[P: TopicProposal](cls: type[P], data: Any) -> P:
+    try:
+        proposal = cls.model_validate(data)
+    except ValidationError as e:
+        raise InvalidModelOutput(f"некорректное предложение темы: {e}") from e
+    if not _ID_RE.match(proposal.id):
+        raise InvalidModelOutput(f"id {proposal.id!r} не соответствует ^[a-z0-9_]+$")
+    examples = [e.strip() for e in proposal.examples if e.strip()]
+    return proposal.model_copy(update={"examples": examples})
+
+
+def _context_block(parents: list[Candidate], siblings: list[Candidate]) -> str:
+    neighbours = "\n".join(_format_candidate(c) for c in siblings) or "(нет)"
+    return f"{_parent_block(parents)}\n\nСоседние темы (не повторять):\n{neighbours}"
+
+
 def _parent_block(parents: list[Candidate]) -> str:
     if not parents:
         return "Родитель: корень дерева (новая тема - одна из тем первого уровня)."
@@ -266,26 +297,13 @@ class LLMText:
             f"Новая тема встанет на уровень {level} из {max_depth}. "
             f"{_level_hint(level, max_depth)} "
             "Тема должна покрывать ВСЕ образцы, а не один из них: если образцы о разном, назови "
-            "то, что их объединяет, а не частный случай. В description перечисли подтемы, "
-            "которые видны в образцах, - по нему другие модели будут относить разговоры к теме. "
+            "то, что их объединяет, а не частный случай. "
             "Если образцы уже покрывает одна из соседних тем, укажи её id в covered_by "
             "(тогда новая тема не нужна), иначе covered_by - пустая строка. "
-            "id - 1-3 английских слова в snake_case по смыслу темы, полными словами, без "
-            "сокращений и транслита (military_action, finance, middle_east, не boe и не fin). "
-            "guard - сам вопрос, на "
-            "который отвечают да или нет, проверяющий принадлежность разговора к теме; пиши "
-            "вопрос, а не ответ (не «yes»), например: «Разговор о банковских картах?». "
-            "examples - 2-3 короткие типичные "
-            "фразы из разговоров этой темы. "
-            f"Title, description, examples и guard пиши на языке: {language}. "
-            "Не повторяй уже существующие темы. " + _LANG_NOTE
+            + _topic_rules(language)
         )
-        neighbours = "\n".join(_format_candidate(c) for c in siblings) or "(нет)"
         numbered = "\n\n".join(f"[{i}] {s}" for i, s in enumerate(samples, 1))
-        user = (
-            f"{_parent_block(parents)}\n\nСоседние темы (не повторять):\n{neighbours}"
-            f"\n\nОбразцы разговоров:\n{numbered}"
-        )
+        user = f"{_context_block(parents, siblings)}\n\nОбразцы разговоров:\n{numbered}"
         data = await _chat_json(
             self._client,
             self._model,
@@ -294,14 +312,68 @@ class LLMText:
             _GENERATION_TEMPERATURE,
             _schema("topic_proposal", _proposal_schema([c.id for c in siblings])),
         )
-        try:
-            proposal = TopicProposal.model_validate(data)
-        except ValidationError as e:
-            raise InvalidModelOutput(f"некорректное предложение темы: {e}") from e
-        if not _ID_RE.match(proposal.id):
-            raise InvalidModelOutput(f"id {proposal.id!r} не соответствует ^[a-z0-9_]+$")
-        examples = [e.strip() for e in proposal.examples if e.strip()]
-        return proposal.model_copy(update={"examples": examples})
+        return _parse_proposal(TopicProposal, data)
+
+    async def group_clusters(
+        self,
+        clusters: list[list[str]],
+        parents: list[Candidate],
+        siblings: list[Candidate],
+        language: str,
+        level: int,
+        max_depth: int,
+    ) -> list[TopicGroup]:
+        system = (
+            "Ты проектируешь дерево тем для классификации разговоров. Ниже пронумерованные "
+            "кластеры похожих разговоров одного узла. Объедини кластеры в темы: "
+            f"новые темы встанут на уровень {level} из {max_depth}. "
+            f"{_level_hint(level, max_depth)} "
+            "Кластеры об одном домене объединяй в одну тему, а не делай тему на каждый кластер, "
+            "но и не сливай разные домены в одну тему: политика, экономика, война, технологии, "
+            "общество - разные домены. "
+            f"Сделай от {min(3, len(clusters))} до {min(12, len(clusters))} тем. "
+            "Темы не должны пересекаться между собой и с соседними. Каждый кластер отнеси не "
+            "более чем к одной теме; кластер, который не подходит ни к одной широкой теме, не "
+            "включай никуда. Не создавай тем «общие новости», «разное», «прочее», «события» - "
+            "для неподходящего есть other. Если кластеры уже покрывает соседняя тема, верни "
+            "для неё элемент с её id в covered_by и этими кластерами, иначе covered_by - "
+            "пустая строка. В clusters - номера кластеров темы. " + _topic_rules(language)
+        )
+        blocks = []
+        for n, samples in enumerate(clusters, 1):
+            lines = "\n".join(f"- {' '.join(s.split())}" for s in samples)
+            blocks.append(f"Кластер {n}:\n{lines}")
+        user = f"{_context_block(parents, siblings)}\n\n" + "\n\n".join(blocks)
+        item = _proposal_schema([c.id for c in siblings])
+        item["properties"]["clusters"] = {
+            "type": "array",
+            "items": {"type": "integer", "minimum": 1, "maximum": len(clusters)},
+        }
+        item["required"] = [*item["required"], "clusters"]
+        schema = {
+            "type": "object",
+            "properties": {"topics": {"type": "array", "items": item}},
+            "required": ["topics"],
+            "additionalProperties": False,
+        }
+        data = await _chat_json(
+            self._client,
+            self._model,
+            system,
+            user,
+            _GENERATION_TEMPERATURE,
+            _schema("topic_groups", schema),
+        )
+        topics = data.get("topics")
+        if not isinstance(topics, list):
+            raise InvalidModelOutput(f"ожидался список topics: {data!r}")
+        groups = []
+        for raw in topics:
+            g = _parse_proposal(TopicGroup, raw)
+            if not g.clusters or any(not 1 <= n <= len(clusters) for n in g.clusters):
+                raise InvalidModelOutput(f"номера кластеров вне 1..{len(clusters)}: {g.clusters}")
+            groups.append(g.model_copy(update={"clusters": [n - 1 for n in g.clusters]}))
+        return groups
 
     async def same_topic(self, a: Candidate, b: Candidate) -> bool:
         system = (

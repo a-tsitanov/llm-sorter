@@ -458,3 +458,53 @@ async def test_propose_covered_by_limited_to_siblings(route: Route) -> None:
     schema = route.last_body["response_format"]["json_schema"]["schema"]
     assert schema["properties"]["covered_by"]["enum"] == ["", "crypto", "banks"]
     assert "covered_by" in schema["required"]
+
+
+def _group(**over: object) -> dict:
+    return {**_PROPOSAL, "covered_by": "", "clusters": [1, 2], **over}
+
+
+async def test_group_clusters_one_call_for_all_clusters(route: Route) -> None:
+    """Темы промежуточного уровня строятся по всем кластерам сразу: модель видит картину целиком."""
+    route.mock(CHAT, _chat(json.dumps({"topics": [_group(id="finance", clusters=[1, 3])]})))
+    [g] = await LLMText(_client(), "m").group_clusters(
+        [["про ставки"], ["про футбол"], ["про вклады"]],
+        [],
+        _cands()[:2],
+        "ru",
+        level=1,
+        max_depth=3,
+    )
+    assert g.id == "finance" and g.clusters == [0, 2]  # в промпте с 1, в ответе - индексы
+    system, user = (m["content"] for m in route.last_body["messages"])
+    assert "Кластер 1" in user and "про футбол" in user and "корень" in user
+    assert "широкий домен" in system and "не более чем к одной" in system
+    assert "разное" in system  # темы-свалки запрещены: для них есть other
+    schema = route.last_body["response_format"]["json_schema"]["schema"]
+    item = schema["properties"]["topics"]["items"]
+    assert item["properties"]["covered_by"]["enum"] == ["", "crypto", "banks"]
+    assert item["properties"]["clusters"]["items"] == {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 3,
+    }
+
+
+@pytest.mark.parametrize(
+    "topic", [_group(clusters=[4]), _group(clusters=[0]), _group(id="Bad Id"), _group(clusters=[])]
+)
+async def test_group_clusters_bad_output_raises(route: Route, topic: dict) -> None:
+    route.mock(CHAT, _chat(json.dumps({"topics": [topic]})))
+    with pytest.raises(InvalidModelOutput):
+        await LLMText(_client(), "m").group_clusters(
+            [["a"], ["b"], ["c"]], [], [], "ru", level=1, max_depth=3
+        )
+
+
+@pytest.mark.parametrize(("n", "lo", "hi"), [(2, 2, 2), (5, 3, 5), (30, 3, 12)])
+async def test_group_clusters_asks_for_topic_count(route: Route, n: int, lo: int, hi: int) -> None:
+    """Без числа тем модель сливает всё в одну («Геополитика и общество» на 711 из 711)."""
+    route.mock(CHAT, _chat(json.dumps({"topics": [_group(clusters=[1])]})))
+    await LLMText(_client(), "m").group_clusters([["x"]] * n, [], [], "ru", level=1, max_depth=3)
+    system = route.last_body["messages"][0]["content"]
+    assert f"от {lo} до {hi} тем" in system and "экономика" in system

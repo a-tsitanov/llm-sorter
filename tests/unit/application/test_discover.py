@@ -1,7 +1,7 @@
 import pytest
 
-from llm_sorter.application.discover import DiscoverService
-from llm_sorter.domain.discover import TopicProposal
+from llm_sorter.application.discover import GROUP_SAMPLES, DiscoverService
+from llm_sorter.domain.discover import TopicGroup, TopicProposal
 from llm_sorter.domain.tree import ROOT_ID, Tree
 from llm_sorter.ports.models import InvalidModelOutput
 from tests.fakes import FakeEmbedder, FakeText, RecordingMetrics
@@ -91,7 +91,8 @@ async def test_creates_topic_from_cluster(
     assert text.levels == [(1, 3)]  # дети root - уровень 1 при max_depth 3
     assert text.siblings == [["finance", "tech"]]
     assert text.parents == [[]]  # корень
-    assert 10 <= len(text.samples[0]) <= 12  # весь кластер: он меньше samples_per_cluster
+    # уровень 1 из 3 - темы собираются из всех кластеров одним вызовом, по GROUP_SAMPLES образцов
+    assert text.calls == {"group_clusters": 1} and len(text.samples[0]) == GROUP_SAMPLES
 
 
 async def test_noise_is_considered_without_llm(
@@ -218,8 +219,7 @@ async def test_slots_limit_clusters(embedder: FakeEmbedder, metrics: RecordingMe
     )
     texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
     res = await svc(embedder, text, metrics).propose(tree(max_children=3), ROOT_ID, texts)
-    assert len(res.accepted) == 1 and text.calls["propose_topic"] == 1
-    assert len(res.considered) == 12
+    assert len(res.accepted) == 1 and len(res.considered) == 12
 
 
 async def test_no_depth_left(embedder: FakeEmbedder, metrics: RecordingMetrics) -> None:
@@ -278,12 +278,16 @@ async def test_embed_more_texts_than_cache(
 async def test_accepted_topics_shown_to_model_as_siblings(
     embedder: FakeEmbedder, metrics: RecordingMetrics
 ) -> None:
+    """Последний уровень - тема на кластер; уже принятые в прогоне видны модели как соседи."""
     text = FakeText(
-        [proposal(), proposal(id_="cashback", title="Кэшбэк", description="Кэшбэк по картам")]
+        [
+            proposal(id_="cashback", title="Кэшбэк", description="Кэшбэк по картам"),
+            proposal(id_="limits", title="Лимиты", description="Лимиты по картам"),
+        ]
     )
     texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
-    await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
-    assert text.siblings == [["finance", "tech"], ["finance", "tech", "taxes"]]
+    await svc(embedder, text, metrics).propose(tree(), "cards", texts)
+    assert text.siblings == [[], ["cashback"]] and text.calls["group_clusters"] == 0
 
 
 async def test_covered_by_sibling_rejected(
@@ -294,3 +298,81 @@ async def test_covered_by_sibling_rejected(
     res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "tax", 5))
     assert res.accepted == [] and res.rejected == 1
     assert sorted(res.considered) == list(range(12))
+
+
+def group(clusters: list[int], **kw: str) -> TopicGroup:
+    return TopicGroup(**proposal(**kw).model_dump(), clusters=clusters)
+
+
+async def test_root_merges_clusters_into_one_topic(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    """Два кластера об одном домене - одна тема уровня 1, а не две пересекающиеся."""
+    text = FakeText(groups=[group([0, 1])])
+    texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
+    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
+    [a] = res.accepted
+    assert a.topic.id == "taxes" and sorted(a.members) == list(range(24))
+    assert text.calls["propose_topic"] == 0 and text.calls["group_clusters"] == 1
+    assert text.levels == [(1, 3)] and text.parents == [[]]
+
+
+async def test_grouped_unassigned_cluster_considered(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    text = FakeText(groups=[group([0])])
+    texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
+    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
+    [a] = res.accepted
+    assert len(a.members) == 12 and len(res.considered) == 12
+
+
+async def test_grouped_cluster_used_once(embedder: FakeEmbedder, metrics: RecordingMetrics) -> None:
+    text = FakeText(
+        groups=[
+            group([0, 1]),
+            group([1], id_="cashback", title="Кэшбэк", description="Кэшбэк по картам"),
+        ]
+    )
+    texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
+    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
+    assert [a.topic.id for a in res.accepted] == ["taxes"]
+
+
+async def test_grouped_covered_by_sibling_rejected(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    covered = group([0, 1]).model_copy(update={"covered_by": "tech"})
+    text = FakeText(groups=[covered])
+    texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
+    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, texts)
+    assert res.accepted == [] and res.rejected == 1 and len(res.considered) == 24
+
+
+async def test_grouped_failure_considers_all(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    text = FakeText(groups=InvalidModelOutput("bad"))
+    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "a", 5))
+    assert res.accepted == [] and len(res.considered) == 12
+    assert metrics.counts["model_error:discover"] == 1
+
+
+async def test_level1_leaf_split_groups_clusters(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    """Лист уровня 1 делится на направления (уровень 2 из 3) тоже группировкой кластеров."""
+    text = FakeText(
+        groups=[
+            group([0], id_="cashback", title="Кэшбэк", description="Кэшбэк по картам"),
+            group([1], id_="limits", title="Лимиты", description="Лимиты по картам"),
+        ]
+    )
+    texts = cluster(embedder, "a", 5) + cluster(embedder, "b", 3)
+    res = await svc(embedder, text, metrics).propose(tree(), "tech", texts)
+    assert [(a.topic.id, a.topic.parent_id) for a in res.accepted] == [
+        ("cashback", "tech"),
+        ("limits", "tech"),
+    ]
+    assert text.calls["group_clusters"] == 1 and text.levels == [(2, 3)]
+    assert text.parents == [["tech"]]

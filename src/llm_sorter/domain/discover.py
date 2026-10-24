@@ -19,6 +19,12 @@ class TopicProposal(BaseModel):
     covered_by: str = ""
 
 
+class TopicGroup(TopicProposal):
+    """Тема, собранная моделью из нескольких кластеров узла; clusters - индексы кластеров."""
+
+    clusters: list[int]
+
+
 def slots_left(tree: Tree, node_id: str) -> int:
     return tree.settings.discover.max_children - len(tree.children(node_id))
 

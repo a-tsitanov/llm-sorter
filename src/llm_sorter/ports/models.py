@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from llm_sorter.domain.discover import TopicProposal
+from llm_sorter.domain.discover import TopicGroup, TopicProposal
 from llm_sorter.domain.traversal import Candidate
 
 
@@ -28,6 +28,19 @@ class TextLLM(Protocol):
     ) -> TopicProposal:
         """parents - цепочка от темы уровня 1 до родителя ([] - корень); level - глубина новой
         темы (дети root - 1), max_depth - предел глубины ветки."""
+        ...
+
+    async def group_clusters(
+        self,
+        clusters: list[list[str]],
+        parents: list[Candidate],
+        siblings: list[Candidate],
+        language: str,
+        level: int,
+        max_depth: int,
+    ) -> list[TopicGroup]:
+        """Темы уровня level по образцам всех кластеров узла сразу; кластер - не более чем
+        в одной теме, неподходящие кластеры не входят ни в одну."""
         ...
 
     async def same_topic(self, a: Candidate, b: Candidate) -> bool: ...

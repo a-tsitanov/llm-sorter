@@ -4,7 +4,7 @@ import hashlib
 from collections import Counter
 from typing import Any
 
-from llm_sorter.domain.discover import TopicProposal
+from llm_sorter.domain.discover import TopicGroup, TopicProposal
 from llm_sorter.domain.messages import AnyRecord, Classified, OtherItem, Transcript
 from llm_sorter.domain.traversal import Candidate
 
@@ -84,9 +84,15 @@ class FakeText:
     """propose_topic отдаёт предложения по очереди (исключение бросается), последнее повторяется."""
 
     def __init__(
-        self, proposals: list[TopicProposal | BaseException] | None = None, same: bool = False
+        self,
+        proposals: list[TopicProposal | BaseException] | None = None,
+        same: bool = False,
+        groups: list[TopicGroup] | BaseException | None = None,
     ) -> None:
         self.proposals = list(proposals or [])
+        # None: group_clusters эмулирует «тема на кластер» из proposals - общие правила приёма
+        # темы проверяются одинаково в обоих режимах discover
+        self.groups = groups
         self.same = same
         self.calls: Counter[str] = Counter()
         self.samples: list[list[str]] = []
@@ -116,6 +122,34 @@ class FakeText:
         if isinstance(value, BaseException):
             raise value
         return value
+
+    async def group_clusters(
+        self,
+        clusters: list[list[str]],
+        parents: list[Candidate],
+        siblings: list[Candidate],
+        language: str,
+        level: int,
+        max_depth: int,
+    ) -> list[TopicGroup]:
+        self.calls["group_clusters"] += 1
+        self.samples.extend(clusters)
+        self.levels.append((level, max_depth))
+        self.siblings.append([c.id for c in siblings])
+        self.parents.append([c.id for c in parents])
+        if isinstance(self.groups, BaseException):
+            raise self.groups
+        if self.groups is not None:
+            return self.groups
+        out = []
+        for i in range(len(clusters)):
+            if not self.proposals:
+                break
+            value = self.proposals.pop(0) if len(self.proposals) > 1 else self.proposals[0]
+            if isinstance(value, BaseException):
+                raise value
+            out.append(TopicGroup(**value.model_dump(), clusters=[i]))
+        return out
 
     async def same_topic(self, a: Candidate, b: Candidate) -> bool:
         self.calls["same_topic"] += 1
