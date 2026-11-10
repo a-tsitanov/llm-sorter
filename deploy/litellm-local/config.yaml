@@ -1,0 +1,22 @@
+model_list:
+  - model_name: d1-3b
+    litellm_params:
+      model: hosted_vllm/d1-3b
+      api_base: http://127.0.0.1:1234
+  - model_name: small
+    litellm_params:
+      model: openai/qwen3-vl-4b-instruct-mlx
+      api_base: http://127.0.0.1:1234/v1
+      api_key: lm-studio
+  - model_name: large
+    litellm_params:
+      model: openai/qwen/qwen3.5-9b
+      api_base: http://127.0.0.1:1234/v1
+      api_key: lm-studio
+  - model_name: bge-m3
+    litellm_params:
+      model: openai/text-embedding-bge-m3
+      api_base: http://127.0.0.1:1234/v1
+      api_key: lm-studio
+    model_info:
+      mode: embedding

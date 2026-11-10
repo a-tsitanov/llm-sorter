@@ -1,0 +1,730 @@
+{
+  "uid": "llm-sorter",
+  "title": "llm-sorter",
+  "tags": [
+    "llm-sorter"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Ревизия дерева",
+      "description": "tree_rev у learner: растёт с каждой правкой дерева",
+      "targets": [
+        {
+          "expr": "max(llm_sorter_tree_rev)",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "Сообщений за период",
+      "description": "Обработано process за выбранный период",
+      "targets": [
+        {
+          "expr": "sum(increase(llm_sorter_processed_total[$__range]))",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "Доля в темах",
+      "description": "Доля сообщений, прошедших гейт листа, за период",
+      "targets": [
+        {
+          "expr": "sum(increase(llm_sorter_processed_total{outcome=\"classified\"}[$__range])) / sum(increase(llm_sorter_processed_total[$__range]))",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 3
+    },
+    {
+      "type": "stat",
+      "title": "Узлы заблокированы",
+      "description": "discover_blocked: узел в max_children, а буфер не пуст - нужна ручная правка дерева",
+      "targets": [
+        {
+          "expr": "sum(llm_sorter_discover_blocked) or vector(0)",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 4
+    },
+    {
+      "type": "stat",
+      "title": "Потеряно в other",
+      "description": "Записи стрима other, удалённые ретеншном до разбора",
+      "targets": [
+        {
+          "expr": "sum(llm_sorter_other_lost_total) or vector(0)",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 0,
+        "w": 5,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 5
+    },
+    {
+      "type": "table",
+      "title": "Горячие темы: сообщений в день",
+      "description": "Прошли гейт листа, в пересчёте на сутки по выбранному периоду. Лист последнего уровня с 100-300+ в день - кандидат на больший max_depth",
+      "targets": [
+        {
+          "expr": "sort_desc(sum by (path) (rate(llm_sorter_guard_results_total{passed=\"true\"}[$__range])) * 86400)",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "в день",
+            "desc": true
+          }
+        ],
+        "showHeader": true
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "в день",
+              "path": "тема (routing key)",
+              "node": "узел"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 8,
+        "h": 12
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 6
+    },
+    {
+      "type": "table",
+      "title": "Доля темы в потоке",
+      "description": "Доля прошедших гейт сообщений, пришедшаяся на тему",
+      "targets": [
+        {
+          "expr": "sort_desc(sum by (path) (increase(llm_sorter_guard_results_total{passed=\"true\"}[$__range])) / scalar(sum(increase(llm_sorter_guard_results_total{passed=\"true\"}[$__range]))))",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "доля",
+            "desc": true
+          }
+        ],
+        "showHeader": true
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "доля",
+              "path": "тема (routing key)",
+              "node": "узел"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 8,
+        "h": 12
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 7
+    },
+    {
+      "type": "table",
+      "title": "Отказы гейта по темам",
+      "description": "Доля сообщений, не прошедших гейт листа (только темы с 10+ проверками). Высокая - тема слишком широкая или decide промахивается",
+      "targets": [
+        {
+          "expr": "sort_desc((sum by (path) (increase(llm_sorter_guard_results_total{passed=\"false\"}[$__range])) / sum by (path) (increase(llm_sorter_guard_results_total[$__range]))) and sum by (path) (increase(llm_sorter_guard_results_total[$__range])) >= 10)",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "отказы",
+            "desc": true
+          }
+        ],
+        "showHeader": true
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "отказы",
+              "path": "тема (routing key)",
+              "node": "узел"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 12
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Исходы обработки, в минуту",
+      "description": "processed по outcome",
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(llm_sorter_processed_total[5m])) * 60",
+          "legendFormat": "{{outcome}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "Задержка моделей p50 / p95",
+      "description": "decide, guard, discover и т.д.",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le, role) (rate(llm_sorter_model_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{role}} p50",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, role) (rate(llm_sorter_model_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{role}} p95",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "Ошибки моделей, в минуту",
+      "description": "Неудачные вызовы (ok=false) и model_errors по ролям",
+      "targets": [
+        {
+          "expr": "sum by (role) (rate(llm_sorter_model_calls_total{ok=\"false\"}[5m])) * 60",
+          "legendFormat": "{{role}} неудачный вызов",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        },
+        {
+          "expr": "sum by (role) (rate(llm_sorter_model_errors_total[5m])) * 60",
+          "legendFormat": "{{role}} model_error",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 11
+    },
+    {
+      "type": "bargauge",
+      "title": "Буферы узлов (ждут discover)",
+      "description": "other_buffer_size у learner: сколько сообщений узла ждут discover; discover - при buffer_threshold новых",
+      "targets": [
+        {
+          "expr": "sort_desc(llm_sorter_other_buffer_size)",
+          "instant": true,
+          "legendFormat": "{{node}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 12
+    },
+    {
+      "type": "table",
+      "title": "Discover по узлам за период",
+      "description": "Запуски discover и созданные / отклонённые темы",
+      "targets": [
+        {
+          "expr": "sum by (node) (increase(llm_sorter_discover_topics_created_total[$__range]))",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        },
+        {
+          "expr": "sum by (node) (increase(llm_sorter_discover_runs_total[$__range]))",
+          "instant": true,
+          "format": "table",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus"
+          }
+        },
+        {
+          "expr": "sum by (node) (increase(llm_sorter_discover_topics_rejected_total[$__range]))",
+          "instant": true,
+          "format": "table",
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "создано тем",
+            "desc": true
+          }
+        ],
+        "showHeader": true
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "node": "узел",
+              "Value #A": "создано тем",
+              "Value #B": "запусков",
+              "Value #C": "отклонено"
+            }
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Вызовы моделей, в минуту",
+      "description": "Все вызовы по ролям",
+      "targets": [
+        {
+          "expr": "sum by (role) (rate(llm_sorter_model_calls_total[5m])) * 60",
+          "legendFormat": "{{role}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus"
+      },
+      "id": 14
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  }
+}

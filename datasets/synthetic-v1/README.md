@@ -10,7 +10,7 @@
 
 ```
 cp datasets/synthetic-v1/transcripts/*.json data/inbox/
-uv run llm-sorter ingest
+uv run llm-sorter feed dir
 ```
 
 ## Проверка набора
@@ -28,11 +28,4 @@ uv run python datasets/synthetic-v1/manifest.py     # пишет manifest.csv (i
 
 ## Оценка прогона
 
-После прогона пайплайна на этом наборе (из корня проекта):
-
-```
-uv run python datasets/synthetic-v1/evaluate.py              # БД из DATABASE_URL / .env
-uv run python datasets/synthetic-v1/evaluate.py <db-url>     # или явно
-```
-
-Печатает статусы по `kind`, каждую выращенную тему с основным `gold_path` и чистотой, покрытие эталонных листьев и шум, попавший в темы. Темы discover называются иначе, чем эталонные, поэтому сопоставление — по большинству файлов темы.
+`evaluate.py` относится к архитектуре v1: он ожидает PostgreSQL, таблицу `classifications` и `DATABASE_URL`, которых нет в текущей версии v2. Не используйте его для оценки текущего запуска. Результаты v2 публикуются в RabbitMQ; отдельного актуального скрипта оценки этого набора в репозитории пока нет.

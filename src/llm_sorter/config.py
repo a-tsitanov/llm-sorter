@@ -45,7 +45,7 @@ class AppConfig(BaseSettings):
     # как часто дообучение переиздаёт старые ждущие сообщения (против ретеншна stream)
     other_refresh_s: float = 86400.0
     metrics_port: int = 9100
-    learner_metrics_port: int = 9101
+    learner_metrics_port: int = 9102  # 9101 часто занят (консоль minio)
 
     # фидер каталога
     source_dir: Path = Path("./data/inbox")

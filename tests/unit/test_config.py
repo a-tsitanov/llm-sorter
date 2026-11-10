@@ -30,7 +30,7 @@ DEFAULTS = {
     "learner_check_s": 30.0,
     "other_refresh_s": 86400.0,
     "metrics_port": 9100,
-    "learner_metrics_port": 9101,
+    "learner_metrics_port": 9102,
     "source_dir": Path("./data/inbox"),
     "poll_interval_s": 10.0,
     "tg_api_id": 0,
