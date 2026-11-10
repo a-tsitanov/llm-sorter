@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +24,9 @@ class AppConfig(BaseSettings):
     model_guard: str = "qwen3-4b"
     model_text: str = "qwen3-4b"
     model_embed: str = "bge-m3"
+    guard_enabled: bool = True
+    embed_max_chars: int = Field(default=1200, gt=0)
+    embed_batch_size: int = Field(default=8, gt=0)
 
     # дерево тем, журнал и позиция дообучения в stream
     sqlite_path: Path = Path("./data/sorter.db")

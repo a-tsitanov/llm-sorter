@@ -393,10 +393,22 @@ class LLMText:
 
 
 class LLMEmbedder:
-    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+    def __init__(
+        self, client: AsyncOpenAI, model: str, max_chars: int = 1200, batch_size: int = 8
+    ) -> None:
+        if max_chars < 1 or batch_size < 1:
+            raise ValueError("embedding limits must be positive")
         self._client = client
         self._model = model
+        self._max_chars = max_chars
+        self._batch_size = batch_size
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        resp = await self._client.embeddings.create(model=self._model, input=texts)
-        return [list(d.embedding) for d in sorted(resp.data, key=lambda d: d.index)]
+        result: list[list[float]] = []
+        for start in range(0, len(texts), self._batch_size):
+            batch = [t[: self._max_chars] for t in texts[start : start + self._batch_size]]
+            resp = await self._client.embeddings.create(model=self._model, input=batch)
+            if sorted(d.index for d in resp.data) != list(range(len(batch))):
+                raise InvalidModelOutput("embedding response indices do not match input")
+            result.extend(list(d.embedding) for d in sorted(resp.data, key=lambda d: d.index))
+        return result

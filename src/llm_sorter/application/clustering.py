@@ -34,7 +34,8 @@ def _reduce(x: NDArray[np.float64]) -> NDArray[np.float64]:
     dim = max(MIN_DIM, min(MAX_DIM, len(x) // 10))
     if x.shape[1] <= dim or len(x) <= dim:
         return x
-    z = PCA(n_components=dim, svd_solver="full", random_state=0).fit_transform(x)
+    solver = "randomized" if len(x) > 1000 and min(x.shape) > dim else "full"
+    z = PCA(n_components=dim, svd_solver=solver, random_state=0).fit_transform(x)
     return _normalize(z)
 
 

@@ -32,11 +32,13 @@ class ProcessService:
         guard: GuardModel,
         metrics: Metrics,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        guard_enabled: bool = True,
     ) -> None:
         self._decision = decision
         self._guard = guard
         self._metrics = metrics
         self._now = now
+        self._guard_enabled = guard_enabled
 
     async def _call_model(self, role: str, call: Callable[[], Awaitable[T]]) -> T:
         """До MODEL_ATTEMPTS вызовов на InvalidModelOutput; прочие ошибки - сразу наверх."""
@@ -122,12 +124,16 @@ class ProcessService:
         assert parent is not None  # у листа всегда есть родитель (root - не лист)
         path = tree.routing_key(node)
         question = guard_question(leaf)
-        try:
-            passed = await self._call_model("guard", lambda: self._guard.check(t.text, question))
-        except InvalidModelOutput:
-            other = self._other(t, tree, parent.id, trail, "model_error", reprocess)
-            return self._done(Outcome(None, [other]))
-        self._metrics.guard_result(path, passed)
+        passed = True
+        if self._guard_enabled:
+            try:
+                passed = await self._call_model(
+                    "guard", lambda: self._guard.check(t.text, question)
+                )
+            except InvalidModelOutput:
+                other = self._other(t, tree, parent.id, trail, "model_error", reprocess)
+                return self._done(Outcome(None, [other]))
+            self._metrics.guard_result(path, passed)
         if not passed:
             # ошиблась ветка: материал для соседней темы у родителя
             other = self._other(t, tree, parent.id, trail, "gate_failed", reprocess)
@@ -138,6 +144,7 @@ class ProcessService:
             text=t.text,
             metadata=t.metadata,
             topic=TopicRef(id=leaf.id, path=path, title=leaf.title),
+            gate="passed" if self._guard_enabled else "skipped",
             trail=trail,
             tree_rev=tree.rev,
             classified_at=self._now(),

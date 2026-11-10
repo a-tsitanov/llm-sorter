@@ -55,7 +55,7 @@ def build_models(cfg: AppConfig, overrides: dict[str, Any] | None = None) -> dic
         "decision": decision_cls(client, cfg.model_decide),
         "guard": LLMGuard(own_client(cfg.llm_guard_url, cfg.llm_guard_api_key), cfg.model_guard),
         "text": LLMText(own_client(cfg.llm_text_url, cfg.llm_text_api_key), cfg.model_text),
-        "embedder": LLMEmbedder(client, cfg.model_embed),
+        "embedder": LLMEmbedder(client, cfg.model_embed, cfg.embed_max_chars, cfg.embed_batch_size),
     }
     return {**models, **ov}
 
@@ -65,7 +65,12 @@ async def build_processor(
 ) -> tuple[ProcessService, TreeCache, SqliteTopicStore]:
     models = build_models(cfg, overrides)
     store = await SqliteTopicStore.open(cfg.sqlite_path)
-    service = ProcessService(models["decision"], models["guard"], build_metrics(metrics_port))
+    service = ProcessService(
+        models["decision"],
+        models["guard"],
+        build_metrics(metrics_port),
+        guard_enabled=cfg.guard_enabled,
+    )
     return service, TreeCache(store, cfg.tree_refresh_s), store
 
 

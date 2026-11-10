@@ -58,6 +58,15 @@ async def test_descends_to_leaf_and_passes_gate() -> None:
     assert [(o.node, o.reason, o.final) for o in out.others] == [("cards", "leaf", False)]
 
 
+async def test_guard_can_be_disabled_without_claiming_it_passed() -> None:
+    guard = FakeGuard([])
+    metrics = RecordingMetrics()
+    service = ProcessService(FakeDecision(["tech"]), guard, metrics, guard_enabled=False)
+    out = await service.process(t(), tree3())
+    assert out.classified is not None and out.classified.gate == "skipped"
+    assert guard.calls == []
+
+
 async def test_no_leaf_copy_at_max_depth() -> None:
     out = await svc(FakeDecision(["finance", "cards"]), FakeGuard([True])).process(
         t(), tree3(max_depth=2)

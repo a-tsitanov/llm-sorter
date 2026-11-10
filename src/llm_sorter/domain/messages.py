@@ -41,7 +41,7 @@ class Classified(_Frozen):
     metadata: dict[str, Any]
     topic: TopicRef
     trail: list[str]
-    gate: Literal["passed"] = "passed"
+    gate: Literal["passed", "skipped"] = "passed"
     tree_rev: int
     classified_at: datetime
 

@@ -376,3 +376,22 @@ async def test_level1_leaf_split_groups_clusters(
     ]
     assert text.calls["group_clusters"] == 1 and text.levels == [(2, 3)]
     assert text.parents == [["tech"]]
+
+
+async def test_grouping_batches_remap_cluster_indices(
+    monkeypatch: pytest.MonkeyPatch, embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
+    import llm_sorter.application.discover as discover
+
+    monkeypatch.setattr(discover, "GROUP_BATCH_SIZE", 1)
+    monkeypatch.setattr(discover, "cluster", lambda vectors, size: [[0], [1]])
+
+    class GroupText(FakeText):
+        async def group_clusters(self, clusters, parents, siblings, language, level, max_depth):
+            assert len(clusters) == 1
+            if not siblings or siblings[-1].id != "taxes":
+                return [group([0])]
+            return [group([0], id_="cashback", title="Кэшбэк", description="Кэшбэк по картам")]
+
+    result = await svc(embedder, GroupText(), metrics).propose(tree(), ROOT_ID, ["a", "b"])
+    assert [(a.topic.id, a.members) for a in result.accepted] == [("taxes", [0]), ("cashback", [1])]

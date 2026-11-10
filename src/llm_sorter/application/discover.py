@@ -1,5 +1,6 @@
 """Discover: кластеризация текстов узла и предложение новых подтем (без хранилищ)."""
 
+import asyncio
 from dataclasses import dataclass
 
 import numpy as np
@@ -26,6 +27,7 @@ MIN_LEAF_SPLIT = 2
 # модель видит все кластеры узла в одном промпте
 GROUP_SAMPLES = 5
 GROUP_SAMPLE_CHARS = 500
+GROUP_BATCH_SIZE = 12
 
 
 @dataclass(frozen=True)
@@ -165,7 +167,7 @@ class DiscoverService:
             # для листа подтемы сравниваются с самим листом: подтема-копия листа бесполезна
             leaf=Candidate(id=node.id, title=node.title, description=node.description),
         )
-        groups = cluster(vectors, s.min_cluster_size) if len(valid) else []
+        groups = await asyncio.to_thread(cluster, vectors, s.min_cluster_size) if len(valid) else []
         members = [[valid[i] for i in g] for g in groups]
         level = tree.depth(node_id) + 1
         if groups and level < tree.max_depth_for(node_id):
@@ -176,29 +178,37 @@ class DiscoverService:
                 [texts[valid[i]][:chars] for i in diverse_samples(vectors, g, GROUP_SAMPLES)]
                 for g in groups
             ]
-            try:
-                proposed = await self._text.group_clusters(
-                    samples,
-                    run.parents,
-                    run.siblings,
-                    tree.settings.language,
-                    level=level,
-                    max_depth=tree.max_depth_for(node_id),
-                )
-            except InvalidModelOutput:
-                self._metrics.model_error("discover")
-                proposed = []
-            used: set[int] = set()
-            picked = []
-            for p in proposed:
-                own = [c for c in dict.fromkeys(p.clusters) if c not in used]
-                used.update(own)
-                if own:
-                    picked.append((p, [i for c in own for i in members[c]]))
-            for p, m in sorted(picked, key=lambda pm: -len(pm[1])):  # крупные - первыми в слоты
+            for start in range(0, len(samples), GROUP_BATCH_SIZE):
                 if run.full():
                     break
-                await run.offer(p, m)
+                batch = samples[start : start + GROUP_BATCH_SIZE]
+                try:
+                    proposed = await self._text.group_clusters(
+                        batch,
+                        run.parents,
+                        run.shown(),
+                        tree.settings.language,
+                        level=level,
+                        max_depth=tree.max_depth_for(node_id),
+                    )
+                except InvalidModelOutput:
+                    self._metrics.model_error("discover")
+                    continue
+                used: set[int] = set()
+                picked = []
+                for p in proposed:
+                    own = [
+                        c
+                        for c in dict.fromkeys(p.clusters)
+                        if 0 <= c < len(batch) and c not in used
+                    ]
+                    used.update(own)
+                    if own:
+                        picked.append((p, [i for c in own for i in members[start + c]]))
+                for p, m in sorted(picked, key=lambda pm: -len(pm[1])):
+                    if run.full():
+                        break
+                    await run.offer(p, m)
         else:
             for g, m in zip(groups, members, strict=True):
                 if run.full():

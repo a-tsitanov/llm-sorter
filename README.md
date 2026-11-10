@@ -135,10 +135,13 @@ uv run llm-sorter topics show                 # дерево и routing keys
 uv run llm-sorter topics log                  # история изменений
 uv run llm-sorter topics export -o topics.yml # экспорт
 uv run llm-sorter topics --help               # add, edit, move, archive, import
+uv run llm-sorter topics edit cards --title "Банковские карты" --description "Платёжные карты" --guard "Это сообщение о банковских картах?"
 
 tail -f ~/.local/share/llm-sorter/litellm.log # локальный LiteLLM
 docker compose logs -f rabbitmq               # инфраструктура
 ```
+
+`topics edit` сохраняет изменение и новую ревизию в SQLite; обработчики подхватят её после обновления кеша. Ранее опубликованные результаты автоматически не переклассифицируются. Для проверки существующих определений используйте `topics export` и `topics log`. Отключить проверку конечной темы можно через `GUARD_ENABLED=false`; результат будет содержать `gate: skipped`.
 
 Процессы `process`, `learn` и `feed` пишут логи в свои терминалы. RabbitMQ Management по умолчанию: `http://localhost:15672` (`guest` / `guest` при подключении с localhost); Grafana — `http://localhost:3000`, Prometheus — `http://localhost:9090`. Если порты изменены, используйте значения из конфигурации. Архив очереди можно просмотреть в RabbitMQ Management; получение сообщений через UI с подтверждением удаляет их из очереди, поэтому выбирайте режим повторной постановки, если сообщение нужно сохранить.
 

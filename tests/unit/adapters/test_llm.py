@@ -18,6 +18,32 @@ CHAT = "http://test/v1/chat/completions"
 EMBED = "http://test/v1/embeddings"
 
 
+async def test_embed_limits_request_and_preserves_order() -> None:
+    requests = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        batch = json.loads(request.content)["input"]
+        requests.append(batch)
+        return httpx2.Response(
+            200,
+            json={
+                "data": [
+                    {"index": i, "embedding": [float(len(t))], "object": "embedding"}
+                    for i, t in reversed(list(enumerate(batch)))
+                ],
+                "model": "m",
+                "object": "list",
+                "usage": {"prompt_tokens": 1, "total_tokens": 1},
+            },
+        )
+
+    http = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    client = AsyncOpenAI(base_url="http://test/v1", api_key="x", http_client=http)
+    vectors = await LLMEmbedder(client, "m", max_chars=3, batch_size=2).embed(["abcdef", "xy", "z"])
+    assert requests == [["abc", "xy"], ["z"]]
+    assert vectors == [[3.0], [2.0], [1.0]]
+
+
 class Route:
     """Мок HTTP-транспорта openai (он работает на httpx2, respx его не патчит)."""
 
