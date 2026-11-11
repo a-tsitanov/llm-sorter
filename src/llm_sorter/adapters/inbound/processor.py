@@ -5,6 +5,7 @@ import contextlib
 import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 import aio_pika
@@ -19,7 +20,7 @@ from llm_sorter.adapters.outbound.rabbit import (
     tree_rev_header,
 )
 from llm_sorter.application.process import ProcessService
-from llm_sorter.domain.messages import Transcript
+from llm_sorter.domain.messages import ClassificationSnapshot, Transcript
 from llm_sorter.domain.tree import Tree
 from llm_sorter.ports.bus import Bus
 from llm_sorter.ports.store import TopicStore
@@ -95,11 +96,24 @@ async def _process_and_publish(
     cache: TreeSource,
     bus: Bus,
 ) -> None:
-    out = await service.process(t, await cache.get(min_rev), reprocess)
+    tree = await cache.get(min_rev)
+    out = await service.process(t, tree, reprocess)
     if out.classified is not None:
         await bus.classified(out.classified)
+    for classified in out.extra_classified:
+        await bus.classified(classified)
     for other in out.others:
         await bus.other(other)
+    results = ([out.classified] if out.classified else []) + out.extra_classified
+    await bus.history(
+        ClassificationSnapshot(
+            transcript=t,
+            topics=[c.topic for c in results],
+            tree_rev=tree.rev,
+            classified_at=datetime.now(UTC),
+            truncated=out.truncated,
+        )
+    )
 
 
 async def handle_delivery(

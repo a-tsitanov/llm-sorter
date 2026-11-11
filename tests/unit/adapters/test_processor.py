@@ -82,7 +82,31 @@ async def test_publish_before_ack() -> None:
     await handle_delivery(
         m, svc(dec, FakeGuard([True])), StaticCache(tree3()), bus, asyncio.Event()
     )
-    assert events == ["classified:finance.cards", "other:item", "ack"]
+    assert events == ["classified:finance.cards", "other:item", "history", "ack"]
+
+
+async def test_multi_results_and_unmatched_messages_are_saved_in_history() -> None:
+    bus = FakeBus()
+    service = ProcessService(
+        FakeDecision(["finance", "tech", "cards"]),
+        FakeGuard([True, True]),
+        RecordingMetrics(),
+        multi_topic=True,
+    )
+    await handle_delivery(FakeMessage(body()), service, StaticCache(tree3()), bus, asyncio.Event())
+    assert {c.topic.path for c in bus.classified_msgs} == {"finance.cards", "tech"}
+    [snapshot] = bus.history_records
+    assert {t.path for t in snapshot.topics} == {"finance.cards", "tech"}
+
+    unmatched = FakeBus()
+    await handle_delivery(
+        FakeMessage(body("b")),
+        svc(FakeDecision(["other"])),
+        StaticCache(tree3()),
+        unmatched,
+        asyncio.Event(),
+    )
+    assert unmatched.history_records[0].topics == []
 
 
 async def test_reprocess_header_reaches_service() -> None:

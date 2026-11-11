@@ -45,34 +45,38 @@ class Learner:
         bus: Bus,
         metrics: Metrics,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        max_batch: int = 2000,
     ) -> None:
+        if max_batch < 1:
+            raise ValueError("max_batch must be positive")
         self._store = store
         self._discover = discover
         self._bus = bus
         self._metrics = metrics
         self._now = now
+        self._max_batch = max_batch
         self._buffers: dict[str, dict[str, Pending]] = {}  # узел -> id -> копия
-        self._node_of: dict[str, str] = {}  # id -> узел, где лежит последняя копия
         self._last_offset = -1  # robust-переподключение отдаёт stream заново - не применять
         self._markers: set[str] = set()
 
     # --- состояние из stream ---
 
-    def _drop(self, id: str) -> Pending | None:
-        node = self._node_of.pop(id, None)
-        if node is None:
+    def _drop(self, id: str, node: str) -> Pending | None:
+        buf = self._buffers.get(node)
+        if buf is None or id not in buf:
             return None
-        p = self._buffers[node].pop(id)
+        p = buf.pop(id)
         if not self._buffers[node]:
             del self._buffers[node]
         return p
 
-    def _resolve(self, ids: list[str], at: datetime) -> None:
+    def _resolve(self, ids: list[str], at: datetime, node: str | None = None) -> None:
         # копия новее записи - уже следующий круг этого сообщения, её не трогаем
-        for id in ids:
-            node = self._node_of.get(id)
-            if node is not None and self._buffers[node][id].item.at <= at:
-                self._drop(id)
+        for key in [node] if node is not None else list(self._buffers):
+            buf = self._buffers.get(key, {})
+            for id in ids:
+                if id in buf and buf[id].item.at <= at:
+                    self._drop(id, key)
 
     def _consider(self, node: str, ids: list[str], at: datetime) -> None:
         buf = self._buffers.get(node, {})
@@ -91,15 +95,16 @@ class Learner:
         if isinstance(record, Marker):
             self._markers.add(record.token)
         elif isinstance(record, Resolved):
-            self._resolve(record.ids, record.at)
+            self._resolve(record.ids, record.at, record.node)
         elif isinstance(record, Considered):
             self._consider(record.node, record.ids, record.at)
         else:
-            self._drop(record.id)  # последняя копия побеждает
+            # Старые записи: последняя копия ID глобальна. Новые: отдельно по веткам.
+            for node in [record.node] if record.branch_scoped else list(self._buffers):
+                self._drop(record.id, node)
             if record.final:
                 return
             self._buffers.setdefault(record.node, {})[record.id] = Pending(offset, record)
-            self._node_of[record.id] = record.node
 
     def buffer(self, node: str) -> list[Pending]:
         return sorted(self._buffers.get(node, {}).values(), key=lambda p: p.offset)
@@ -133,8 +138,18 @@ class Learner:
             new_count = sum(not p.considered for p in buf)
             if not should_discover(tree, node, new_count):
                 continue
+            # Сначала новые сообщения, затем ранее рассмотренные для контекста.
+            # Порог может быть больше лимита: иначе discover никогда не наберёт материал.
+            limit = max(
+                self._max_batch,
+                tree.settings.discover.buffer_threshold,
+                tree.settings.discover.min_cluster_size,
+            )
+            batch = ([p for p in buf if not p.considered] + [p for p in buf if p.considered])[
+                :limit
+            ]
             try:
-                tree = await self._run_node(tree, node, buf)
+                tree = await self._run_node(tree, node, batch, buf)
             except Exception:
                 # узел, на котором discover падает (контекст модели, сбой), не держит остальные
                 log.exception("discover at %s failed", node)
@@ -143,7 +158,9 @@ class Learner:
             done.append(node)
         return done
 
-    async def _run_node(self, tree: Tree, node: str, buf: list[Pending]) -> Tree:
+    async def _run_node(
+        self, tree: Tree, node: str, buf: list[Pending], full_buffer: list[Pending]
+    ) -> Tree:
         started = self._now()
         was_leaf = tree.is_leaf(node)
         res = await self._discover.propose(tree, node, [p.item.text for p in buf])
@@ -159,18 +176,17 @@ class Learner:
                 res = DiscoverResult([], list(range(len(buf))), res.rejected)
             else:
                 # проросший лист: всё его содержимое спускается в новые подтемы
-                members = (
-                    range(len(buf))
-                    if was_leaf
-                    else sorted({i for a in res.accepted for i in a.members})
-                )
-                moved = [buf[i] for i in members]
+                if was_leaf:
+                    moved = full_buffer
+                else:
+                    members = sorted({i for a in res.accepted for i in a.members})
+                    moved = [buf[i] for i in members]
         for p in moved:
             await self._bus.reinject(p.item.transcript(), p.item.reprocess + 1, tree.rev)
         if moved:
             ids = [p.item.id for p in moved]
-            await self._bus.other(Resolved(ids=ids, at=started))
-            self._resolve(ids, started)
+            await self._bus.other(Resolved(ids=ids, at=started, node=node))
+            self._resolve(ids, started, node)
         moved_ids = {p.item.id for p in moved}
         rest = [buf[i].item.id for i in res.considered if buf[i].item.id not in moved_ids]
         if rest:

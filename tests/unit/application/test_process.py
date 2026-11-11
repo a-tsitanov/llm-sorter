@@ -67,6 +67,37 @@ async def test_guard_can_be_disabled_without_claiming_it_passed() -> None:
     assert guard.calls == []
 
 
+async def test_multi_topic_classifies_independent_paths() -> None:
+    tree = tree3()
+    service = ProcessService(
+        FakeDecision(["finance", "tech", "cards"]),
+        FakeGuard([True, True]),
+        RecordingMetrics(),
+        now=lambda: NOW,
+        multi_topic=True,
+    )
+    out = await service.process(t(), tree)
+    assert out.classified is not None
+    assert {c.topic.path for c in [out.classified, *out.extra_classified]} == {
+        "finance.cards",
+        "tech",
+    }
+    assert {o.node for o in out.others} == {"cards", "tech"}
+    assert all(o.branch_scoped for o in out.others)
+
+
+async def test_multi_choice_limit_marks_result_incomplete() -> None:
+    service = ProcessService(
+        FakeDecision(["finance", "cards"]),
+        FakeGuard([True]),
+        RecordingMetrics(),
+        multi_topic=True,
+        max_choices=1,
+    )
+    out = await service.process(t(), tree3())
+    assert out.classified is not None and out.truncated
+
+
 async def test_no_leaf_copy_at_max_depth() -> None:
     out = await svc(FakeDecision(["finance", "cards"]), FakeGuard([True])).process(
         t(), tree3(max_depth=2)

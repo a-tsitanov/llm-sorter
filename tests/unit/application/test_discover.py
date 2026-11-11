@@ -126,11 +126,12 @@ async def test_meaningless_guard_replaced_with_default(
     assert a.topic.guard == "Этот разговор действительно на тему «Налоги»: Налоговые вопросы?"
 
 
-async def test_invalid_output_skipped(embedder: FakeEmbedder, metrics: RecordingMetrics) -> None:
+async def test_invalid_output_fails_discover(
+    embedder: FakeEmbedder, metrics: RecordingMetrics
+) -> None:
     text = FakeText([InvalidModelOutput("bad json")])
-    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "t", 5))
-    assert res.accepted == [] and len(res.considered) == 12
-    assert metrics.counts["model_error:discover"] == 1
+    with pytest.raises(InvalidModelOutput):
+        await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "t", 5))
 
 
 async def test_dup_of_sibling_rejected(embedder: FakeEmbedder, metrics: RecordingMetrics) -> None:
@@ -259,9 +260,11 @@ async def test_embeddings_cached_between_runs(
     e = Counting(dict(embedder.mapping), dim=DIM)
     texts = cluster(e, "tax", 5)
     s = svc(e, FakeText([InvalidModelOutput("x")]), metrics)
-    await s.propose(tree(), ROOT_ID, texts)
+    with pytest.raises(InvalidModelOutput):
+        await s.propose(tree(), ROOT_ID, texts)
     before = len(e.texts)
-    await s.propose(tree(), ROOT_ID, texts)  # тот же буфер на следующем discover
+    with pytest.raises(InvalidModelOutput):
+        await s.propose(tree(), ROOT_ID, texts)  # тот же буфер на следующем discover
     assert len(e.texts) == before and before >= 12
 
 
@@ -349,13 +352,12 @@ async def test_grouped_covered_by_sibling_rejected(
     assert res.accepted == [] and res.rejected == 1 and len(res.considered) == 24
 
 
-async def test_grouped_failure_considers_all(
+async def test_grouped_failure_aborts_discover(
     embedder: FakeEmbedder, metrics: RecordingMetrics
 ) -> None:
     text = FakeText(groups=InvalidModelOutput("bad"))
-    res = await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "a", 5))
-    assert res.accepted == [] and len(res.considered) == 12
-    assert metrics.counts["model_error:discover"] == 1
+    with pytest.raises(InvalidModelOutput):
+        await svc(embedder, text, metrics).propose(tree(), ROOT_ID, cluster(embedder, "a", 5))
 
 
 async def test_level1_leaf_split_groups_clusters(

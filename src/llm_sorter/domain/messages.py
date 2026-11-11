@@ -46,6 +46,16 @@ class Classified(_Frozen):
     classified_at: datetime
 
 
+class ClassificationSnapshot(_Frozen):
+    """Один результат обработки целого сообщения для истории и повторного чтения."""
+
+    transcript: Transcript
+    topics: list[TopicRef]
+    tree_rev: int
+    classified_at: datetime
+    truncated: bool = False
+
+
 class OtherItem(_Frozen):
     """Сообщение, застрявшее на узле `node` (или материал листа при reason=leaf)."""
 
@@ -61,6 +71,7 @@ class OtherItem(_Frozen):
     reprocess: int = 0
     final: bool = False
     at: datetime
+    branch_scoped: bool = False
 
     def transcript(self) -> Transcript:
         return Transcript(
@@ -74,6 +85,7 @@ class Resolved(_Frozen):
     kind: Literal["resolved"] = "resolved"
     ids: list[str]
     at: datetime
+    node: str | None = None
 
 
 class Considered(_Frozen):

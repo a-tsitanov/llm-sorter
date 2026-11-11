@@ -31,7 +31,7 @@ async def conn(rabbit_url: str, names: Names) -> AsyncIterator[AbstractRobustCon
     c = await aio_pika.connect_robust(rabbit_url)
     yield c
     ch = await c.channel()
-    for q in (names.inbox, names.dlq, names.archive, names.other):
+    for q in (names.inbox, names.dlq, names.archive, names.other, names.history_name):
         await ch.queue_delete(q)
     await ch.exchange_delete(names.exchange)
     await c.close()

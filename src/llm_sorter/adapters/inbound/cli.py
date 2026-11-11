@@ -3,11 +3,13 @@ import contextlib
 import logging
 import signal
 from collections.abc import Awaitable, Callable
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from llm_sorter.adapters.inbound.history import filter_history, read_history, utc_now
 from llm_sorter.adapters.inbound.learner_runner import LearnerLock, run_learner
 from llm_sorter.adapters.inbound.poller import run_poller
 from llm_sorter.adapters.inbound.processor import run_processor
@@ -27,6 +29,43 @@ topics_app = typer.Typer(help="Дерево тем (SQLite)", no_args_is_help=Tr
 app.add_typer(topics_app, name="topics")
 feed_app = typer.Typer(help="Фидеры: источник -> очередь inbox", no_args_is_help=True)
 app.add_typer(feed_app, name="feed")
+history_app = typer.Typer(help="История классификаций в RabbitMQ Stream", no_args_is_help=True)
+app.add_typer(history_app, name="history")
+
+
+@history_app.command("read")
+def history_read(
+    topic: Annotated[str | None, typer.Option(help="ID темы или полный путь")] = None,
+    days: Annotated[int, typer.Option(min=1, help="Период по времени получения")] = 30,
+    limit: Annotated[int, typer.Option(min=1, help="Максимум результатов")] = 100,
+) -> None:
+    """Последний результат для каждого сообщения, JSON Lines; stream не удаляется."""
+    cfg = AppConfig()
+    records = asyncio.run(read_history(cfg.rabbit_url, Names.from_config(cfg)))
+    for record in filter_history(records, topic, utc_now() - timedelta(days=days))[:limit]:
+        typer.echo(record.model_dump_json())
+
+
+@history_app.command("replay")
+def history_replay(
+    days: Annotated[int, typer.Option(min=1, help="Период по времени получения")] = 30,
+    topic: Annotated[str | None, typer.Option(help="Только текущие назначения этой темы")] = None,
+) -> None:
+    """Повторно классифицировать сообщения из истории по текущему дереву."""
+    cfg = AppConfig()
+
+    async def run() -> int:
+        records = await read_history(cfg.rabbit_url, Names.from_config(cfg))
+        selected = filter_history(records, topic, utc_now() - timedelta(days=days))
+        pub = InboxPublisher(cfg.rabbit_url, Names.from_config(cfg))
+        try:
+            for record in selected:
+                await pub.publish(record.transcript)
+        finally:
+            await pub.close()
+        return len(selected)
+
+    typer.echo(f"Отправлено на повторную классификацию: {asyncio.run(run())}")
 
 
 def _fail(msg: str) -> typer.Exit:
@@ -80,14 +119,22 @@ def topics_edit(
     title: Annotated[str | None, typer.Option()] = None,
     description: Annotated[str | None, typer.Option()] = None,
     guard: Annotated[str | None, typer.Option()] = None,
+    example: Annotated[
+        list[str] | None, typer.Option(help="Заменить примеры; опцию можно повторять")
+    ] = None,
+    clear_examples: Annotated[bool, typer.Option(help="Удалить все примеры")] = False,
 ) -> None:
-    fields = {
+    fields: dict[str, str | list[str]] = {
         k: v
         for k, v in {"title": title, "description": description, "guard": guard}.items()
         if v is not None
     }
+    if example and clear_examples:
+        raise _fail("--example и --clear-examples несовместимы")
+    if example is not None or clear_examples:
+        fields["examples"] = example or []
     if not fields:
-        raise _fail("нечего менять: укажите --title / --description / --guard")
+        raise _fail("нечего менять: укажите --title / --description / --guard / --example")
     _topics(lambda s: s.edit(id, **fields))
 
 
@@ -272,6 +319,7 @@ def learn(
                 cfg.other_max_bytes,
                 stop,
                 reconsider,
+                max_batch=cfg.learner_max_batch,
             )
         finally:
             await store.close()

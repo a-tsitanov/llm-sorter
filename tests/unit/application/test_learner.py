@@ -137,6 +137,18 @@ async def test_latest_copy_wins(store: SqliteTopicStore) -> None:
     assert lr.buffer(ROOT_ID) == [] and [p.offset for p in lr.buffer("finance")] == [1]
 
 
+async def test_branch_scoped_records_and_resolution_are_independent(
+    store: SqliteTopicStore,
+) -> None:
+    lr = learner(store, FakeDiscover())
+    lr.feed(0, item("a", "cards", branch_scoped=True))
+    lr.feed(1, item("a", "travel", branch_scoped=True))
+    assert [p.item.id for p in lr.buffer("cards")] == ["a"]
+    assert [p.item.id for p in lr.buffer("travel")] == ["a"]
+    lr.feed(2, Resolved(ids=["a"], node="cards", at=T0))
+    assert not lr.buffer("cards") and [p.item.id for p in lr.buffer("travel")] == ["a"]
+
+
 async def test_final_items_ignored(store: SqliteTopicStore) -> None:
     lr = learner(store, FakeDiscover())
     lr.feed(0, item("a"))
@@ -219,6 +231,38 @@ async def test_leaf_split_reinjects_whole_leaf_buffer(store: SqliteTopicStore) -
     assert await lr.run_due() == ["cards"]
     assert len(bus.reinjected) == 10 and lr.buffer("cards") == []
     assert not [r for r in bus.records if isinstance(r, Considered)]
+
+
+async def test_large_buffer_is_processed_in_bounded_batches(store: SqliteTopicStore) -> None:
+    d = FakeDiscover()
+    lr = Learner(store, d, FakeBus(), RecordingMetrics(), now=Clock(), max_batch=10)
+    fill(lr, 25)
+    assert await lr.run_due() == [ROOT_ID]
+    assert len(d.calls[0][1]) == 10
+    assert sum(p.considered for p in lr.buffer(ROOT_ID)) == 10
+    assert await lr.run_due() == [ROOT_ID]
+    assert d.calls[1][1] == [f"текст m{i}" for i in range(10, 20)]
+    assert sum(not p.considered for p in lr.buffer(ROOT_ID)) == 5
+    assert await lr.run_due() == []  # оставшиеся ждут обычного порога новых сообщений
+
+
+async def test_leaf_split_reinjects_even_unselected_items(store: SqliteTopicStore) -> None:
+    await store.apply([AddTopic(topic=topic("cards"))], "cli")
+    d = FakeDiscover(
+        [
+            DiscoverResult(
+                [accepted("cashback", "cards", [0]), accepted("limits", "cards", [1])],
+                list(range(2, 10)),
+                0,
+            )
+        ]
+    )
+    bus = FakeBus()
+    lr = Learner(store, d, bus, RecordingMetrics(), now=Clock(), max_batch=10)
+    fill(lr, 25, node="cards")
+    await lr.run_due()
+    assert len(d.calls[0][1]) == 10
+    assert len(bus.reinjected) == 25 and lr.buffer("cards") == []
 
 
 async def test_blocked_node_reported(store: SqliteTopicStore) -> None:
@@ -308,6 +352,7 @@ async def test_failing_node_does_not_block_others(store: SqliteTopicStore) -> No
     fill(lr, 10, node="finance", start=10, prefix="f")
     assert await lr.run_due() == ["finance"]
     assert m.counts["model_error:discover"] == 1
+    assert not any(p.considered for p in lr.buffer(ROOT_ID))
 
 
 async def test_refresh_schedule_survives_restart(store: SqliteTopicStore) -> None:

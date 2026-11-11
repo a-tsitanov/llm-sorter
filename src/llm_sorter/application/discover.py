@@ -16,7 +16,7 @@ from llm_sorter.domain.discover import (
 from llm_sorter.domain.traversal import Candidate, candidates_for
 from llm_sorter.domain.tree import OTHER_ID, ROOT_ID, Topic, Tree
 from llm_sorter.ports.metrics import Metrics
-from llm_sorter.ports.models import Embedder, InvalidModelOutput, TextLLM
+from llm_sorter.ports.models import Embedder, TextLLM
 
 EMBED_BATCH = 16
 # буфер узла кластеризуется заново на каждом discover: эмбеддинги текстов кешируются
@@ -182,18 +182,14 @@ class DiscoverService:
                 if run.full():
                     break
                 batch = samples[start : start + GROUP_BATCH_SIZE]
-                try:
-                    proposed = await self._text.group_clusters(
-                        batch,
-                        run.parents,
-                        run.shown(),
-                        tree.settings.language,
-                        level=level,
-                        max_depth=tree.max_depth_for(node_id),
-                    )
-                except InvalidModelOutput:
-                    self._metrics.model_error("discover")
-                    continue
+                proposed = await self._text.group_clusters(
+                    batch,
+                    run.parents,
+                    run.shown(),
+                    tree.settings.language,
+                    level=level,
+                    max_depth=tree.max_depth_for(node_id),
+                )
                 used: set[int] = set()
                 picked = []
                 for p in proposed:
@@ -217,18 +213,14 @@ class DiscoverService:
                     texts[valid[i]][: s.sample_chars]
                     for i in diverse_samples(vectors, g, s.samples_per_cluster)
                 ]
-                try:
-                    one = await self._text.propose_topic(
-                        samples_one,
-                        run.parents,
-                        run.shown(),
-                        tree.settings.language,
-                        level=level,
-                        max_depth=tree.max_depth_for(node_id),
-                    )
-                except InvalidModelOutput:
-                    self._metrics.model_error("discover")
-                    continue
+                one = await self._text.propose_topic(
+                    samples_one,
+                    run.parents,
+                    run.shown(),
+                    tree.settings.language,
+                    level=level,
+                    max_depth=tree.max_depth_for(node_id),
+                )
                 await run.offer(one, m)
         accepted, rejected = run.accepted, run.rejected
 

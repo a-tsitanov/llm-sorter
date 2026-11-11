@@ -2,12 +2,13 @@
 
 import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import partial
 from typing import TypeVar
 
 from llm_sorter.domain.messages import Classified, OtherItem, Reason, TopicRef, Transcript
-from llm_sorter.domain.traversal import candidates_for, guard_question, resolve_choice
+from llm_sorter.domain.traversal import Candidate, candidates_for, guard_question, resolve_choice
 from llm_sorter.domain.tree import OTHER_ID, ROOT_ID, Tree
 from llm_sorter.ports.metrics import Metrics
 from llm_sorter.ports.models import DecisionModel, GuardModel, InvalidModelOutput
@@ -23,6 +24,8 @@ class Outcome:
     classified: Classified | None
     # 0..2: остановка/отказ гейта, плюс копия материала листа (reason=leaf)
     others: list[OtherItem]
+    extra_classified: list[Classified] = field(default_factory=list)
+    truncated: bool = False
 
 
 class ProcessService:
@@ -33,12 +36,16 @@ class ProcessService:
         metrics: Metrics,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         guard_enabled: bool = True,
+        multi_topic: bool = False,
+        max_choices: int = 3,
     ) -> None:
         self._decision = decision
         self._guard = guard
         self._metrics = metrics
         self._now = now
         self._guard_enabled = guard_enabled
+        self._multi_topic = multi_topic
+        self._max_choices = max_choices
 
     async def _call_model(self, role: str, call: Callable[[], Awaitable[T]]) -> T:
         """До MODEL_ATTEMPTS вызовов на InvalidModelOutput; прочие ошибки - сразу наверх."""
@@ -100,6 +107,8 @@ class ProcessService:
         return out
 
     async def process(self, t: Transcript, tree: Tree, reprocess: int = 0) -> Outcome:
+        if self._multi_topic:
+            return await self._process_multi(t, tree, reprocess)
         node = ROOT_ID
         trail: list[str] = []
         while not tree.is_leaf(node):
@@ -153,3 +162,82 @@ class ProcessService:
         if tree.depth(node) < tree.max_depth_for(node):
             others.append(self._other(t, tree, node, trail, "leaf", reprocess))
         return self._done(Outcome(classified, others))
+
+    async def _process_multi(self, t: Transcript, tree: Tree, reprocess: int) -> Outcome:
+        """Повторный выбор среди оставшихся соседей, отдельный результат для каждого листа."""
+        pending: list[tuple[str, list[str]]] = [(ROOT_ID, [])]
+        classified: list[Classified] = []
+        others: list[OtherItem] = []
+        truncated = False
+        while pending:
+            node, trail = pending.pop(0)
+            if not tree.is_leaf(node):
+                candidates = candidates_for(tree, node)
+                choices = 0
+                error = False
+                while t.text.strip() and any(c.id != OTHER_ID for c in candidates):
+                    if choices >= self._max_choices:
+                        truncated = True
+                        break
+
+                    async def decide(options: list[Candidate] = candidates) -> str:
+                        choice = await self._decision.decide(t.text, options)
+                        if choice not in {c.id for c in options}:
+                            raise InvalidModelOutput(f"unknown choice {choice!r}")
+                        return choice
+
+                    try:
+                        choice = await self._call_model("decide", decide)
+                    except InvalidModelOutput:
+                        error = True
+                        truncated = True
+                        break
+                    if choice == OTHER_ID:
+                        break
+                    choices += 1
+                    candidates = [c for c in candidates if c.id != choice]
+                    pending.append((choice, [*trail, choice]))
+                if error or choices == 0:
+                    reason: Reason = "model_error" if error else "no_match"
+                    others.append(self._other(t, tree, node, trail, reason, reprocess))
+                continue
+
+            leaf = tree.get(node)
+            parent = tree.parent(node)
+            assert parent is not None
+            path = tree.routing_key(node)
+            passed = True
+            if self._guard_enabled:
+                question = guard_question(leaf)
+                try:
+                    passed = await self._call_model(
+                        "guard", partial(self._guard.check, t.text, question)
+                    )
+                except InvalidModelOutput:
+                    truncated = True
+                    others.append(self._other(t, tree, parent.id, trail, "model_error", reprocess))
+                    continue
+                self._metrics.guard_result(path, passed)
+            if not passed:
+                others.append(self._other(t, tree, parent.id, trail, "gate_failed", reprocess))
+                continue
+            classified.append(
+                Classified(
+                    id=t.id,
+                    text=t.text,
+                    metadata=t.metadata,
+                    topic=TopicRef(id=leaf.id, path=path, title=leaf.title),
+                    trail=trail,
+                    gate="passed" if self._guard_enabled else "skipped",
+                    tree_rev=tree.rev,
+                    classified_at=self._now(),
+                )
+            )
+            if tree.depth(node) < tree.max_depth_for(node):
+                others.append(self._other(t, tree, node, trail, "leaf", reprocess))
+        # Одна запись на узел: несколько отказов соседних листьев не должны затирать друг друга.
+        by_node = {o.node: o.model_copy(update={"branch_scoped": True}) for o in others}
+        out = Outcome(
+            classified[0] if classified else None, list(by_node.values()), classified[1:], truncated
+        )
+        return self._done(out)

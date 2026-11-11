@@ -70,6 +70,8 @@ async def build_processor(
         models["guard"],
         build_metrics(metrics_port),
         guard_enabled=cfg.guard_enabled,
+        multi_topic=cfg.multi_topic,
+        max_choices=cfg.multi_max_choices,
     )
     return service, TreeCache(store, cfg.tree_refresh_s), store
 

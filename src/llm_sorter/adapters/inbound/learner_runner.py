@@ -145,13 +145,16 @@ async def run_learner(
     other_max_bytes: int,
     stop: asyncio.Event,
     reconsider: bool = False,
+    max_batch: int = 2000,
 ) -> None:
     conn = await aio_pika.connect_robust(url)
     try:
         channel = await conn.channel()
         await channel.set_qos(prefetch_count=STREAM_PREFETCH)
         exchange = await declare_topology(channel, n, other_max_age, other_max_bytes)
-        learner = Learner(store, discover, RabbitBus(channel, exchange, n), metrics)
+        learner = Learner(
+            store, discover, RabbitBus(channel, exchange, n), metrics, max_batch=max_batch
+        )
         saved = await store.get_state(OFFSET_KEY)
         start: int | str = int(saved) if saved is not None else "first"
         pos = StreamPosition(next=start if isinstance(start, int) else 0)

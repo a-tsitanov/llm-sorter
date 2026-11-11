@@ -5,7 +5,13 @@ from collections import Counter
 from typing import Any
 
 from llm_sorter.domain.discover import TopicGroup, TopicProposal
-from llm_sorter.domain.messages import AnyRecord, Classified, OtherItem, Transcript
+from llm_sorter.domain.messages import (
+    AnyRecord,
+    ClassificationSnapshot,
+    Classified,
+    OtherItem,
+    Transcript,
+)
 from llm_sorter.domain.traversal import Candidate
 
 
@@ -177,6 +183,7 @@ class FakeBus:
     def __init__(self, events: list[str] | None = None) -> None:
         self.events = events if events is not None else []
         self.classified_msgs: list[Classified] = []
+        self.history_records: list[ClassificationSnapshot] = []
         self.records: list[AnyRecord] = []
         self.reinjected: list[tuple[Transcript, int]] = []
         self.reinjected_revs: list[int] = []
@@ -192,6 +199,10 @@ class FakeBus:
     async def other(self, record: AnyRecord) -> None:
         self.events.append(f"other:{record.kind}")
         self.records.append(record)
+
+    async def history(self, snapshot: ClassificationSnapshot) -> None:
+        self.events.append("history")
+        self.history_records.append(snapshot)
 
     async def reinject(self, t: Transcript, reprocess: int, tree_rev: int = 0) -> None:
         self.events.append(f"reinject:{t.id}")

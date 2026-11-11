@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from llm_sorter.domain.messages import AnyRecord, Classified, Transcript
+from llm_sorter.domain.messages import AnyRecord, ClassificationSnapshot, Classified, Transcript
 
 
 class Bus(Protocol):
@@ -8,6 +8,10 @@ class Bus(Protocol):
 
     async def classified(self, msg: Classified) -> None:
         """В topic exchange, routing key = msg.topic.path."""
+        ...
+
+    async def history(self, snapshot: ClassificationSnapshot) -> None:
+        """Результат целиком, в том числе без назначенных тем."""
         ...
 
     async def other(self, record: AnyRecord) -> None:

@@ -25,6 +25,8 @@ class AppConfig(BaseSettings):
     model_text: str = "qwen3-4b"
     model_embed: str = "bge-m3"
     guard_enabled: bool = True
+    multi_topic: bool = True
+    multi_max_choices: int = Field(default=3, gt=0)
     embed_max_chars: int = Field(default=1200, gt=0)
     embed_batch_size: int = Field(default=8, gt=0)
 
@@ -35,6 +37,9 @@ class AppConfig(BaseSettings):
     inbox_queue: str = "llm-sorter.inbox"
     classified_exchange: str = "llm-sorter.classified"
     classified_archive: str = "llm-sorter.classified.all"
+    classified_history: str = "llm-sorter.classified.history"
+    history_max_age: str = "30D"
+    history_max_bytes: int = 10 * 1024**3
     other_stream: str = "llm-sorter.other"
     other_max_age: str = "30D"
     other_max_bytes: int = 10 * 1024**3
@@ -45,6 +50,7 @@ class AppConfig(BaseSettings):
     tree_refresh_s: float = 1.0
     # как часто дообучение проверяет пороги и сохраняет позицию в stream
     learner_check_s: float = 30.0
+    learner_max_batch: int = Field(default=2000, gt=0)
     # как часто дообучение переиздаёт старые ждущие сообщения (против ретеншна stream)
     other_refresh_s: float = 86400.0
     metrics_port: int = 9100

@@ -49,6 +49,22 @@ def test_move_and_export(env: Path, tmp_path: Path) -> None:
     assert "parent: tech" in out.read_text(encoding="utf-8")
 
 
+def test_edit_replaces_and_clears_examples(env: Path) -> None:
+    assert runner.invoke(app, ["topics", "import", str(env)]).exit_code == 0
+    edit = runner.invoke(
+        app, ["topics", "edit", "cards", "--example", "первый", "--example", "второй"]
+    )
+    assert edit.exit_code == 0
+    exported = runner.invoke(app, ["topics", "export"]).output
+    assert "первый" in exported and "второй" in exported
+    assert runner.invoke(app, ["topics", "edit", "cards", "--title", "Новые карты"]).exit_code == 0
+    exported = runner.invoke(app, ["topics", "export"]).output
+    assert "первый" in exported and "второй" in exported
+    assert runner.invoke(app, ["topics", "edit", "cards", "--clear-examples"]).exit_code == 0
+    exported = runner.invoke(app, ["topics", "export"]).output
+    assert "первый" not in exported and "второй" not in exported
+
+
 def test_validation_error_exit_code(env: Path) -> None:
     r = runner.invoke(app, ["topics", "add", "Bad-Id", "--title", "x", "--description", "y"])
     assert r.exit_code == 1 and "invalid id" in r.output

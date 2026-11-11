@@ -8,7 +8,13 @@ import aio_pika
 from aio_pika.abc import AbstractChannel, AbstractExchange, AbstractRobustConnection
 
 from llm_sorter.config import AppConfig
-from llm_sorter.domain.messages import AnyRecord, Classified, Transcript, dump_record
+from llm_sorter.domain.messages import (
+    AnyRecord,
+    ClassificationSnapshot,
+    Classified,
+    Transcript,
+    dump_record,
+)
 
 REPROCESS_HEADER = "x-reprocess"
 # ревизия дерева, с которой сообщение перегнано: обработчик не классифицирует его по старому
@@ -21,6 +27,13 @@ class Names:
     exchange: str
     archive: str
     other: str
+    history: str = ""
+    history_max_age: str = "30D"
+    history_max_bytes: int = 10 * 1024**3
+
+    @property
+    def history_name(self) -> str:
+        return self.history or f"{self.archive}.history"
 
     @property
     def dlq(self) -> str:
@@ -33,6 +46,9 @@ class Names:
             exchange=cfg.classified_exchange,
             archive=cfg.classified_archive,
             other=cfg.other_stream,
+            history=cfg.classified_history,
+            history_max_age=cfg.history_max_age,
+            history_max_bytes=cfg.history_max_bytes,
         )
 
 
@@ -84,6 +100,15 @@ async def declare_topology(
     archive = await ch.declare_queue(n.archive, durable=True)
     await archive.bind(ex, routing_key="#")
     await ch.declare_queue(
+        n.history_name,
+        durable=True,
+        arguments={
+            "x-queue-type": "stream",
+            "x-max-age": n.history_max_age,
+            "x-max-length-bytes": n.history_max_bytes,
+        },
+    )
+    await ch.declare_queue(
         n.other,
         durable=True,
         arguments={
@@ -105,6 +130,11 @@ class RabbitBus:
 
     async def classified(self, msg: Classified) -> None:
         await self._ex.publish(_message(msg.model_dump_json().encode()), routing_key=msg.topic.path)
+
+    async def history(self, snapshot: ClassificationSnapshot) -> None:
+        await self._ch.default_exchange.publish(
+            _message(snapshot.model_dump_json().encode()), routing_key=self._n.history_name
+        )
 
     async def other(self, record: AnyRecord) -> None:
         await self._ch.default_exchange.publish(
